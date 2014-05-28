@@ -307,8 +307,6 @@ struct CWMCU_platform_data {
 	uint32_t gpio_chip_mode;
 	uint32_t gpio_mcu_irq;
 	int GS_chip_layout;
-	u8 ALS_goldh;
-	u8 ALS_goldl;
 
 };
 #endif 

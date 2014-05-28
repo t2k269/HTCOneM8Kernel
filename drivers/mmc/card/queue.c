@@ -397,26 +397,20 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
 	}
 	return 0;
  free_bounce_sg:
-	if (mqrq_cur->bounce_sg)
-		kfree(mqrq_cur->bounce_sg);
+	kfree(mqrq_cur->bounce_sg);
 	mqrq_cur->bounce_sg = NULL;
-	if (mqrq_prev->bounce_sg)
-		kfree(mqrq_prev->bounce_sg);
+	kfree(mqrq_prev->bounce_sg);
 	mqrq_prev->bounce_sg = NULL;
 
  cleanup_queue:
-	if (mqrq_cur->sg)
-		kfree(mqrq_cur->sg);
+	kfree(mqrq_cur->sg);
 	mqrq_cur->sg = NULL;
-	if (mqrq_cur->bounce_buf)
-		kfree(mqrq_cur->bounce_buf);
+	kfree(mqrq_cur->bounce_buf);
 	mqrq_cur->bounce_buf = NULL;
 
-	if (mqrq_prev->sg)
-		kfree(mqrq_prev->sg);
+	kfree(mqrq_prev->sg);
 	mqrq_prev->sg = NULL;
-	if (mqrq_prev->bounce_buf)
-		kfree(mqrq_prev->bounce_buf);
+	kfree(mqrq_prev->bounce_buf);
 	mqrq_prev->bounce_buf = NULL;
 
 	blk_cleanup_queue(mq->queue);

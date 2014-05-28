@@ -3594,7 +3594,6 @@ static ssize_t pm8xxx_led_blink_store(struct device *dev,
 	led->mode = val;
 	mutex_lock(&led->lock);
 	current_blink = val;
-	LED_INFO("%s: blink: %d\n", __func__, val);
 	switch(led->id) {
 	case QPNP_ID_LED_MPP:
 		led->mpp_cfg->blink_mode = val;
@@ -4048,15 +4047,10 @@ static int __devexit qpnp_leds_remove(struct spmi_device *spmi)
 
 	return 0;
 }
-
-#ifdef CONFIG_OF
 static struct of_device_id spmi_match_table[] = {
-	{ .compatible = "qcom,leds-qpnp",},
-	{ },
+	{	.compatible = "qcom,leds-qpnp",
+	}
 };
-#else
-#define spmi_match_table NULL
-#endif
 
 static struct spmi_driver qpnp_leds_driver = {
 	.driver		= {

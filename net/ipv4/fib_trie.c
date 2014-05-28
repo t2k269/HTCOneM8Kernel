@@ -1454,10 +1454,10 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct rt_trie_node *c)
 #ifdef CONFIG_HTC_NETWORK_MODIFY
 	void *pq;
 	if ((!p) || (IS_ERR(p)) || (probe_kernel_address(p,pq))) {
-		printk(KERN_DEBUG "[NET][WARN] p is illegal in %s \n", __func__);
+		pr_debug("[NET][WARN] p is illegal in %s \n", __func__);
 		return NULL; 
 	}
-	printk(KERN_DEBUG "[NET]%s+\n", __func__);
+	pr_debug("[NET]%s+\n", __func__);
 #endif
 
 	do {
@@ -1480,12 +1480,12 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct rt_trie_node *c)
 
 #ifdef CONFIG_HTC_NETWORK_MODIFY
 			if ((!c) || (IS_ERR(c))) {
-				printk(KERN_DEBUG "[NET] c is NULL in %s , idx=%d\n", __func__,idx);
+				pr_debug("[NET] c is NULL in %s , idx=%d\n", __func__,idx);
 				continue;
 			}
 
 			if (probe_kernel_address(c,q)) {
-				printk(KERN_DEBUG "[NET] c is in %s illegal, going to next round,idx = %d\n", __func__,idx);
+				pr_debug("[NET] c is in %s illegal, going to next round,idx = %d\n", __func__,idx);
 				continue;
 			}
 #else
@@ -1495,7 +1495,7 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct rt_trie_node *c)
 
 			if (IS_LEAF(c)) {
 				prefetch(rcu_dereference_rtnl(p->child[idx]));
-				printk(KERN_DEBUG "[NET]%s-,1\n", __func__);
+				pr_debug("[NET]%s-,1\n", __func__);
 				return (struct leaf *) c;
 			}
 
@@ -1508,7 +1508,7 @@ static struct leaf *leaf_walk_rcu(struct tnode *p, struct rt_trie_node *c)
 		c = (struct rt_trie_node *) p;
 	} while ((p = node_parent_rcu(c)) != NULL);
 
-	printk(KERN_DEBUG "[NET]%s-,2\n", __func__);
+	pr_debug("[NET]%s-,2\n", __func__);
 	return NULL; 
 }
 

@@ -620,7 +620,7 @@ static s8 gtp_enter_doze(struct goodix_ts_data *ts)
 	return ret;
 }
 #else
-static u8 gtp_enter_sleep(struct goodix_ts_data *ts)
+static s8 gtp_enter_sleep(struct goodix_ts_data  *ts)
 {
 	int ret = -1;
 	s8 retry = 0;
@@ -642,16 +642,16 @@ static u8 gtp_enter_sleep(struct goodix_ts_data *ts)
 		ret = goodix_power_off(ts);
 		if (ret) {
 			dev_err(&ts->client->dev, "GTP power off failed.\n");
-			return ret;
+			return 0;
 		}
-		return 0;
+		return 1;
 	} else {
 		usleep(5000);
 		while (retry++ < 5) {
 			ret = gtp_i2c_write(ts->client, i2c_control_buf, 3);
 			if (ret == 1) {
 				dev_dbg(&ts->client->dev, "GTP enter sleep!");
-				return 0;
+				return ret;
 			}
 			msleep(20);
 		}
@@ -1009,8 +1009,7 @@ static int gtp_request_irq(struct goodix_ts_data *ts)
 	int ret;
 	const u8 irq_table[] = GTP_IRQ_TAB;
 
-	ret = request_threaded_irq(ts->client->irq, NULL,
-			goodix_ts_irq_handler,
+	ret = request_irq(ts->client->irq, goodix_ts_irq_handler,
 			irq_table[ts->int_trigger_type],
 			ts->client->name, ts);
 	if (ret) {
@@ -1759,7 +1758,7 @@ static int goodix_ts_suspend(struct device *dev)
 
 	ret = gtp_enter_sleep(ts);
 #endif
-	if (ret < 0)
+	if (ret <= 0)
 		dev_err(&ts->client->dev, "GTP early suspend failed.\n");
 	msleep(58);
 	mutex_unlock(&ts->lock);
@@ -1942,15 +1941,8 @@ static void gtp_esd_check_func(struct work_struct *work)
 }
 #endif
 
-#if (!defined(CONFIG_FB) && !defined(CONFIG_HAS_EARLYSUSPEND))
-static const struct dev_pm_ops goodix_ts_dev_pm_ops = {
-	.suspend = goodix_ts_suspend,
-	.resume = goodix_ts_resume,
-};
-#else
-static const struct dev_pm_ops goodix_ts_dev_pm_ops = {
-};
-#endif
+static SIMPLE_DEV_PM_OPS(goodix_ts_dev_pm_ops, goodix_ts_suspend,
+					goodix_ts_resume);
 
 static const struct i2c_device_id goodix_ts_id[] = {
 	{ GTP_I2C_NAME, 0 },

@@ -35,7 +35,6 @@ static struct mutex api_lock;
 static struct acoustic_ops default_acoustic_ops;
 static struct acoustic_ops *the_ops = &default_acoustic_ops;
 static struct switch_dev sdev_beats;
-static struct switch_dev sdev_dq;
 static struct switch_dev sdev_listen_notification;
 
 static struct mutex hs_amp_lock;
@@ -277,24 +276,6 @@ acoustic_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		switch_set_state(&sdev_beats, new_state);
 		break;
 	}
-	case ACOUSTIC_UPDATE_DQ_STATUS: {
-		int new_state = -1;
-
-		if (copy_from_user(&new_state, (void *)arg, sizeof(new_state))) {
-			rc = -EFAULT;
-			break;
-		}
-		D("Update DQ Status : %d\n", new_state);
-		if (new_state < -1 || new_state > 1) {
-			E("Invalid Beats status update");
-			rc = -EINVAL;
-			break;
-		}
-
-		sdev_dq.state = -1;
-		switch_set_state(&sdev_dq, new_state);
-		break;
-	}
 	case ACOUSTIC_CONTROL_WAKELOCK: {
 		int new_state = -1;
 
@@ -419,11 +400,6 @@ static ssize_t beats_print_name(struct switch_dev *sdev, char *buf)
 	return sprintf(buf, "Beats\n");
 }
 
-static ssize_t dq_print_name(struct switch_dev *sdev, char *buf)
-{
-	return sprintf(buf, "DQ\n");
-}
-
 static ssize_t listen_notification_print_name(struct switch_dev *sdev, char *buf)
 {
 	return sprintf(buf, "Listen_notification\n");
@@ -532,15 +508,6 @@ static int __init acoustic_init(void)
 	ret = switch_dev_register(&sdev_beats);
 	if (ret < 0) {
 		pr_err("failed to register beats switch device!\n");
-		return ret;
-	}
-
-	sdev_dq.name = "DQ";
-	sdev_dq.print_name = dq_print_name;
-
-	ret = switch_dev_register(&sdev_dq);
-	if (ret < 0) {
-		pr_err("failed to register DQ switch device!\n");
 		return ret;
 	}
 

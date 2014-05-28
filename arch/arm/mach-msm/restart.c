@@ -46,16 +46,7 @@
 #include "smd_private.h"
 #include "htc_smem.h"
 
-#include <linux/fs.h>
-#include <asm/uaccess.h>
-
 #define HTC_SMEM_PARAM_BASE_ADDR 0xFBF0000
-
-#define HW_RST_ADDR 0x270
-#define MISC_DEV_PREFIX "/dev/block/mmcblk0p"
-
-extern int get_partition_num_by_name(char *name);
-
 #endif
 
 #define WDT0_RST	0x38
@@ -231,57 +222,14 @@ static void check_modem_efs_sync_timeout(unsigned timeout)
 		pr_info("%s: modem efs_sync done.\n", __func__);
 }
 
-static ssize_t kernel_write(struct file *file, const char *buf, size_t count, loff_t pos)
-{
-	mm_segment_t old_fs;
-	ssize_t res;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
-	res = vfs_write(file, (const char __user *)buf, count, &pos);
-	set_fs(old_fs);
-	return res;
-}
-
-static int set_reset_reason(unsigned int reason)
-{
-	char filename[32] = "";
-	unsigned int hw_reason = reason;
-	struct file *filp = NULL;
-	ssize_t nread;
-	int pnum = get_partition_num_by_name("misc");
-
-	if (pnum < 0) {
-		printk(KERN_ERR "Unknonwn partition number for misc partition\n");
-		return -1;
-	}
-	sprintf(filename, "%s%d", MISC_DEV_PREFIX, pnum);
-
-	filp = filp_open(filename, O_RDWR, 0);
-	if (IS_ERR(filp) || (!filp)) {
-		printk(KERN_ERR "Unable to open misc partition file: %s\n", filename);
-		return PTR_ERR(filp);
-	}
-	filp->f_pos = HW_RST_ADDR;
-	nread = kernel_write(filp, (char *)&hw_reason, sizeof(unsigned int), filp->f_pos);
-	printk(KERN_ERR "[REBOOT] write: %X (%d), %s\n", hw_reason, nread, filename);
-
-	if (filp)
-		filp_close(filp, NULL);
-
-	return 0;
-}
-
 static int notify_efs_sync_call
 	(struct notifier_block *this, unsigned long code, void *_cmd)
 {
 	unsigned long oem_code = 0;
-
 	switch (code) {
 	case SYS_RESTART:
 		if (_cmd && !strncmp(_cmd, "oem-", 4)) {
 			oem_code = simple_strtoul(_cmd + 4, 0, 16) & 0xff;
-			set_reset_reason(RESTART_REASON_OEM_BASE | oem_code);
 			if (oem_code == 0x98 || oem_code == 0x99)
 				set_ril_fatal(oem_code);
 		}
@@ -479,9 +427,7 @@ void msm_restart(char mode, const char *cmd)
 		
 		msm_disable_wdog_debug();
 		halt_spmi_pmic_arbiter();
-#ifndef CONFIG_ARCH_MSM8226
 		__raw_writel(0, MSM_MPM2_PSHOLD_BASE);
-#endif
 	}
 
 	mdelay(10000);

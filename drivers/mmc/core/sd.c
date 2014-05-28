@@ -960,10 +960,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	err = mmc_send_status(card, &status);
-	printk(KERN_INFO "%s: %s status : %#x, err = %#x, speed : %d\n",
-		mmc_hostname(host), __func__, status, err,
-		card->sw_caps.uhs_max_dtr ?
-			card->sw_caps.uhs_max_dtr : card->sw_caps.hs_max_dtr);
+	printk(KERN_INFO "%s: %s card status : %#x, err = %#x\n", mmc_hostname(host), __func__, status, err);
 
 	host->card = card;
 	return 0;
@@ -1048,15 +1045,13 @@ static int mmc_sd_suspend(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
-
 	mmc_disable_clk_scaling(host);
-	mmc_rpm_hold(host, &host->class_dev);
+
 	mmc_claim_host(host);
 	if (!mmc_host_is_spi(host))
 		mmc_deselect_cards(host);
 	host->card->state &= ~MMC_STATE_HIGHSPEED;
 	mmc_release_host(host);
-	mmc_rpm_release(host, &host->class_dev);
 
 	return 0;
 }
@@ -1078,8 +1073,8 @@ static int mmc_sd_resume(struct mmc_host *host)
 	delayTime = 5;
 	while (retries) {
 		if (host->ops->get_cd && host->ops->get_cd(host) == 0) {
-			printk(KERN_ERR "%s(%s): find no card. Stop trying\n",
-				__func__, mmc_hostname(host));
+			printk(KERN_ERR "%s(%s): find no card (%d). Stop trying\n",
+				__func__, mmc_hostname(host), err);
 			break;
 		}
 		err = mmc_sd_init_card(host, host->ocr, host->card);

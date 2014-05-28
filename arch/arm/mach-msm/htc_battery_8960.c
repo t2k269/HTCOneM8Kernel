@@ -61,7 +61,6 @@ static int chg_dis_active_mask = HTC_BATT_CHG_DIS_BIT_ID
 								| HTC_BATT_CHG_DIS_BIT_MFG
 								| HTC_BATT_CHG_DIS_BIT_STOP_SWOLLEN
 								| HTC_BATT_CHG_DIS_BIT_TMP
-								| HTC_BATT_CHG_DIS_BIT_TMR
 								| HTC_BATT_CHG_DIS_BIT_USR_TMR;
 static int chg_dis_control_mask = HTC_BATT_CHG_DIS_BIT_ID
 								| HTC_BATT_CHG_DIS_BIT_MFG
@@ -91,13 +90,11 @@ static int chg_limit_timer_sub_mask;
 
 #define SUSPEND_HIGHFREQ_CHECK_BIT_TALK		(1)
 #define SUSPEND_HIGHFREQ_CHECK_BIT_SEARCH	(1<<1)
-#define SUSPEND_HIGHFREQ_CHECK_BIT_MUSIC	(1<<3)
 static int suspend_highfreq_check_reason;
 
 #define CONTEXT_STATE_BIT_TALK			(1)
 #define CONTEXT_STATE_BIT_SEARCH		(1<<1)
-#define CONTEXT_STATE_BIT_NAVIGATION		(1<<2)
-#define CONTEXT_STATE_BIT_MUSIC			(1<<3)
+#define CONTEXT_STATE_BIT_NAVIGATION	(1<<2)
 static int context_state;
 
 #define STATE_WORKQUEUE_PENDING			(1)
@@ -128,6 +125,7 @@ static void shutdown_worker(struct work_struct *work);
 struct delayed_work shutdown_work;
 
 #define BATT_CRITICAL_LOW_VOLTAGE		(3000)
+#define VOL_ALARM_RESUME_AFTER_LEVEL		(5)
 static int critical_shutdown = 0;
 static int critical_alarm_level;
 static int critical_alarm_level_set;
@@ -313,8 +311,7 @@ static void batt_lower_voltage_alarm_handler(int status)
 {
 	wake_lock(&voltage_alarm_wake_lock);
 	if (status) {
-		if (htc_batt_info.igauge->enable_lower_voltage_alarm)
-			htc_batt_info.igauge->enable_lower_voltage_alarm(0);
+		htc_batt_info.igauge->enable_lower_voltage_alarm(0);
 		BATT_LOG("voltage_alarm level=%d (%d mV) triggered.",
 			critical_alarm_level,
 			htc_batt_info.critical_alarm_vol_ptr[critical_alarm_level]);
@@ -391,9 +388,6 @@ int htc_gauge_event_notify(enum htc_gauge_event event)
 	case HTC_GAUGE_EVENT_OVERLOAD:
 		htc_batt_schedule_batt_info_update();
 		break;
-	case HTC_GAUGE_EVENT_LOW_VOLTAGE_ALARM:
-		batt_lower_voltage_alarm_handler(1);
-		break;
 	case HTC_GAUGE_EVENT_BATT_REMOVED:
 		if (!(get_kernel_flag() & KERNEL_FLAG_TEST_PWR_SUPPLY)) {
 		wake_lock(&batt_shutdown_wake_lock);
@@ -438,10 +432,6 @@ int htc_charger_event_notify(enum htc_charger_event event)
 	case HTC_CHARGER_EVENT_VBUS_OUT:
 	case HTC_CHARGER_EVENT_SRC_NONE: 
 		latest_chg_src = CHARGER_BATTERY;
-		if (delayed_work_pending(&htc_batt_timer.unknown_usb_detect_work)) {
-			cancel_delayed_work_sync(&htc_batt_timer.unknown_usb_detect_work);
-			wake_unlock(&htc_batt_timer.unknown_usb_detect_lock);
-		}
 		htc_batt_schedule_batt_info_update();
 		break;
 	case HTC_CHARGER_EVENT_SRC_USB: 
@@ -498,10 +488,6 @@ int htc_charger_event_notify(enum htc_charger_event event)
 			htc_batt_schedule_batt_info_update();
 
 		mutex_unlock(&htc_batt_info.info_lock);
-		break;
-	case HTC_CHARGER_EVENT_SRC_CABLE_INSERT_NOTIFY:
-		latest_chg_src = CHARGER_NOTIFY;
-		htc_batt_schedule_batt_info_update();
 		break;
 	default:
 		pr_info("[BATT] unsupported charger event(%d)\n", event);
@@ -710,10 +696,6 @@ static void cable_status_notifier_func(enum usb_connect_type online)
 		BATT_LOG("mhl_ac");
 		htc_charger_event_notify(HTC_CHARGER_EVENT_SRC_MHL_AC);
 		break;
-	case CONNECT_TYPE_NOTIFY:
-		BATT_LOG("cable insert notify");
-		htc_charger_event_notify(HTC_CHARGER_EVENT_SRC_CABLE_INSERT_NOTIFY);
-		break;
 	default:
 		BATT_LOG("unsupported connect_type=%d", online);
 		htc_charger_event_notify(HTC_CHARGER_EVENT_SRC_NONE);
@@ -849,12 +831,6 @@ static void __context_event_handler(enum batt_context_event event)
 	case EVENT_NETWORK_SEARCH_STOP:
 		suspend_highfreq_check_reason &= ~SUSPEND_HIGHFREQ_CHECK_BIT_SEARCH;
 		break;
-	case EVENT_MUSIC_START:
-		suspend_highfreq_check_reason |= SUSPEND_HIGHFREQ_CHECK_BIT_MUSIC;
-		break;
-	case EVENT_MUSIC_STOP:
-		suspend_highfreq_check_reason &= ~SUSPEND_HIGHFREQ_CHECK_BIT_MUSIC;
-		break;
 	default:
 		pr_warn("unsupported context event (%d)\n", event);
 		return;
@@ -901,16 +877,6 @@ static int htc_batt_context_event_handler(enum batt_context_event event)
 		if (!(context_state & CONTEXT_STATE_BIT_NAVIGATION))
 			goto exit;
 		context_state &= ~CONTEXT_STATE_BIT_NAVIGATION;
-		break;
-	case EVENT_MUSIC_START:
-		if (context_state & CONTEXT_STATE_BIT_MUSIC)
-			goto exit;
-		context_state |= CONTEXT_STATE_BIT_MUSIC;
-		break;
-	case EVENT_MUSIC_STOP:
-		if (!(context_state & CONTEXT_STATE_BIT_MUSIC))
-			goto exit;
-		context_state &= ~CONTEXT_STATE_BIT_MUSIC;
 		break;
 	default:
 		pr_warn("unsupported context event (%d)\n", event);
@@ -1019,6 +985,8 @@ static void htc_batt_store_battery_ui_soc(int soc_ui)
 static void htc_batt_get_battery_ui_soc(int *soc_ui)
 {
 	int temp_soc;
+	int orig_soc;
+	orig_soc = *soc_ui;
 
 	if (htc_batt_info.igauge &&
 			htc_batt_info.igauge->get_battery_ui_soc) {
@@ -1029,32 +997,25 @@ static void htc_batt_get_battery_ui_soc(int *soc_ui)
 				*soc_ui = temp_soc;
 	}
 
+
 	return;
 }
 
 static int htc_battery_get_rt_attr(enum htc_batt_rt_attr attr, int *val)
 {
-	int ret = -EINVAL;
+	int ret = 0;
 	switch (attr) {
 	case HTC_BATT_RT_VOLTAGE:
-		if (htc_batt_info.igauge->get_battery_voltage)
-			ret = htc_batt_info.igauge->get_battery_voltage(val);
+		ret = htc_batt_info.igauge->get_battery_voltage(val);
 		break;
 	case HTC_BATT_RT_CURRENT:
-		if (htc_batt_info.igauge->get_battery_current)
-			ret = htc_batt_info.igauge->get_battery_current(val);
+		ret = htc_batt_info.igauge->get_battery_current(val);
 		break;
 	case HTC_BATT_RT_TEMPERATURE:
-		if (htc_batt_info.igauge->get_battery_temperature)
-			ret = htc_batt_info.igauge->get_battery_temperature(val);
-		break;
-	case HTC_BATT_RT_VOLTAGE_UV:
-		if (htc_batt_info.igauge->get_battery_voltage) {
-			ret = htc_batt_info.igauge->get_battery_voltage(val);
-			*val *= 1000;
-		}
+		ret = htc_batt_info.igauge->get_battery_temperature(val);
 		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 	return ret;
@@ -1517,11 +1478,9 @@ inline static int is_voltage_critical_low(int voltage_mv)
 	return (voltage_mv < htc_batt_info.critical_low_voltage_mv) ? 1 : 0;
 }
 
-#define CHG_ONE_PERCENT_LIMIT_PERIOD_MS	(1000 * 60)
-static void batt_check_overload(unsigned long time_since_last_update_ms)
+static void batt_check_overload(void)
 {
 	static unsigned int overload_count;
-	static unsigned long time_accumulation;
 	int is_full = 0;
 
 	if(htc_batt_info.igauge && htc_batt_info.igauge->is_battery_full)
@@ -1536,18 +1495,12 @@ static void batt_check_overload(unsigned long time_since_last_update_ms)
 			(!is_full) &&
 			((htc_batt_info.rep.batt_current / 1000) >
 				htc_batt_info.overload_curr_thr_ma)) {
-		time_accumulation += time_since_last_update_ms;
-		if (time_accumulation >= CHG_ONE_PERCENT_LIMIT_PERIOD_MS) {
-			if (overload_count++ < 3) {
-				htc_batt_info.rep.overload = 0;
-			} else
-				htc_batt_info.rep.overload = 1;
-
-			time_accumulation = 0;
-		}
+		if (overload_count++ < 3) {
+			htc_batt_info.rep.overload = 0;
+		} else
+			htc_batt_info.rep.overload = 1;
 	} else { 
 			overload_count = 0;
-			time_accumulation = 0;
 			htc_batt_info.rep.overload = 0;
 	}
 }
@@ -1599,6 +1552,7 @@ static void adjust_store_level(int *store_level, int drop_raw, int drop_ui, int 
 	*store_level = store;
 }
 
+#define CHG_ONE_PERCENT_LIMIT_PERIOD_MS	(1000 * 60)
 #define DISCHG_UPDATE_PERIOD_MS			(1000 * 60)
 #define ONE_PERCENT_LIMIT_PERIOD_MS		(1000 * (60 + 10))
 #define FIVE_PERCENT_LIMIT_PERIOD_MS	(1000 * (300 + 10))
@@ -1614,11 +1568,10 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 	static bool stored_level_flag = false;
 	static bool allow_drop_one_percent_flag = false;
 	int prev_raw_level, drop_raw_level;
-	int prev_level;
+	int prev_level, drop_level;
 	int is_full = 0, dec_level = 0;
-	int dropping_level;
+	unsigned long level_since_last_update_ms;
 	static unsigned long pre_jiffies;
-	static unsigned long time_accumulated = 0;
 	const struct battery_info_reply *prev_batt_info_rep =
 						htc_battery_core_get_batt_info_rep();
 
@@ -1629,8 +1582,10 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 		prev_level = htc_batt_info.rep.level;
 		prev_raw_level = htc_batt_info.rep.level_raw;
 		pre_jiffies = 0;
+		level_since_last_update_ms = DISCHG_UPDATE_PERIOD_MS;
 		pre_ten_digit = htc_batt_info.rep.level / 10;
 	}
+	drop_level = prev_level - htc_batt_info.rep.level;
 	drop_raw_level = prev_raw_level - htc_batt_info.rep.level_raw;
 
 	if ((prev_batt_info_rep->charging_source > 0) &&
@@ -1681,9 +1636,7 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 						htc_batt_info.rep.batt_current);
 		} else {
 			
-			
-			if ((htc_batt_info.rep.level_raw < 30) ||
-					(prev_level - prev_raw_level > 10))
+			if (prev_level < 20)
 				allow_drop_one_percent_flag = true;
 
 			
@@ -1777,29 +1730,6 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 				critical_low_enter = 0;
 				pr_warn("[BATT] exit critical_low without charge!\n");
 			}
-
-			if (htc_batt_info.rep.batt_temp < 0 &&
-				drop_raw_level == 0 &&
-				store_level >= 2) {
-				
-				time_accumulated += time_since_last_update_ms;
-				if (time_accumulated >= DISCHG_UPDATE_PERIOD_MS) {
-					dropping_level = prev_level - htc_batt_info.rep.level;
-					if((dropping_level == 1) || (dropping_level == 0)) {
-						store_level = store_level - (2 - dropping_level);
-						htc_batt_info.rep.level = htc_batt_info.rep.level -
-							(2 - dropping_level);
-					}
-					time_accumulated = 0;
-					pr_info("[BATT] remap: enter low temperature section, "
-							"store_level:%d%%, dropping_level:%d%%, "
-							"prev_level:%d%%, level:%d%%.\n"
-							, store_level, prev_level, dropping_level
-							, htc_batt_info.rep.level);
-				}
-			}
-			else
-				time_accumulated = 0;
 		}
 		if ((htc_batt_info.rep.level == 0) && (prev_level > 1)) {
 			htc_batt_info.rep.level = 1;
@@ -1825,7 +1755,15 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 					htc_batt_info.rep.level = 100; 
 				}
 			} else {
-				if (prev_level > htc_batt_info.rep.level) {
+				if (99 < htc_batt_info.rep.level)
+					htc_batt_info.rep.level = 100; 
+				else if (prev_level < htc_batt_info.rep.level) {
+					if(time_since_last_update_ms >
+							CHG_ONE_PERCENT_LIMIT_PERIOD_MS)
+						htc_batt_info.rep.level = prev_level + 1;
+					else
+						htc_batt_info.rep.level = prev_level;
+				} else if (prev_level  > htc_batt_info.rep.level) {
 					
 					if (!htc_batt_info.rep.overload) {
 						pr_info("[BATT] pre_level=%d, new_level=%d, "
@@ -1833,23 +1771,6 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 								prev_level, htc_batt_info.rep.level);
 						htc_batt_info.rep.level = prev_level;
 					}
-				}
-				else if (99 < htc_batt_info.rep.level && prev_level < 100)
-					htc_batt_info.rep.level = 99; 
-				else if (prev_level < htc_batt_info.rep.level) {
-					if(time_since_last_update_ms >
-							CHG_ONE_PERCENT_LIMIT_PERIOD_MS)
-						htc_batt_info.rep.level = prev_level + 1;
-					else
-						htc_batt_info.rep.level = prev_level;
-
-					if (htc_batt_info.rep.level > 100)
-						htc_batt_info.rep.level = 100;
-				}
-				else {
-					pr_info("[BATT] pre_level=%d, new_level=%d, "
-						"level would use raw level!\n",
-						prev_level, htc_batt_info.rep.level);
 				}
 			}
 		}
@@ -2025,8 +1946,8 @@ static void batt_worker(struct work_struct *work)
 				msecs_to_jiffies(BATT_CRITICAL_VOL_SHUTDOWN_DELAY_MS));
 	}
 	
-	if (critical_alarm_level < 0 && prev_chg_src > 0 &&
-			htc_batt_info.rep.charging_source == HTC_PWR_SOURCE_TYPE_BATT) {
+	if (critical_alarm_level < 0 &&
+			htc_batt_info.rep.level >= VOL_ALARM_RESUME_AFTER_LEVEL) {
 		pr_info("[BATT] critical_alarm_level: %d -> %d\n",
 				critical_alarm_level, htc_batt_info.critical_alarm_vol_cols - 1);
 		critical_alarm_level= htc_batt_info.critical_alarm_vol_cols - 1;
@@ -2037,7 +1958,7 @@ static void batt_worker(struct work_struct *work)
 	batt_update_limited_charge();
 
 	
-	batt_check_overload(time_since_last_update_ms);
+	batt_check_overload();
 
 	
 	if (need_sw_stimer)
@@ -2072,7 +1993,7 @@ static void batt_worker(struct work_struct *work)
 			chg_dis_reason &= ~HTC_BATT_CHG_DIS_BIT_ID;
 
 
-		if (charger_safety_timeout || sw_stimer_fault)
+		if (sw_stimer_fault)
 			chg_dis_reason |= HTC_BATT_CHG_DIS_BIT_TMR;
 		else
 			chg_dis_reason &= ~HTC_BATT_CHG_DIS_BIT_TMR;
@@ -2215,8 +2136,7 @@ static void batt_worker(struct work_struct *work)
 		pr_info("[BATT] set voltage alarm level=%d\n", critical_alarm_level);
 		htc_batt_info.igauge->set_lower_voltage_alarm_threshold(
 					htc_batt_info.critical_alarm_vol_ptr[critical_alarm_level]);
-		if (htc_batt_info.igauge->enable_lower_voltage_alarm)
-			htc_batt_info.igauge->enable_lower_voltage_alarm(1);
+		htc_batt_info.igauge->enable_lower_voltage_alarm(1);
 	}
 
 	first = 0;
@@ -2581,7 +2501,9 @@ static int htc_battery_probe(struct platform_device *pdev)
 	int i, rc = 0;
 	struct htc_battery_platform_data *pdata = pdev->dev.platform_data;
 	struct htc_battery_core *htc_battery_core_ptr;
-
+#if defined(CONFIG_FB)
+	int ret = 0;
+#endif
 	pr_info("[BATT] %s() in\n", __func__);
 
 	htc_battery_core_ptr = kmalloc(sizeof(struct htc_battery_core),
@@ -2745,7 +2667,7 @@ static int htc_battery_probe(struct platform_device *pdev)
 	htc_batt_info.batt_fb_wq = create_singlethread_workqueue("HTC_BATTERY_FB");
 	if (!htc_batt_info.batt_fb_wq) {
 		BATT_ERR("allocate batt_fb_wq failed\n");
-		rc = -ENOMEM;
+		ret = -ENOMEM;
 		goto fail;
 	}
 	INIT_DELAYED_WORK(&htc_batt_info.work_fb, htc_battery_fb_register);

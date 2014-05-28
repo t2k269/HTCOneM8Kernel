@@ -497,12 +497,6 @@ config TOUCHSCREEN_HIMAX
 		help
 		This enables support for HIMAX HM852xD over I2C based touchscreens.
 
-config TOUCHSCREEN_HIMAX_ESD_EN
-        tristate "HIMAX HM852xD ESD recovery function"
-		depends on I2C
-		help
-		This enables support ESD recovery function for HIMAX HM852xD.
-
 config SYNA_MULTI_TOUCH
 	tristate "Synaptics i2c touchscreen(ClearPad 3000) MutilTouch support"
 	depends on TOUCHSCREEN_SYNAPTICS_RMI4_I2C

@@ -24,8 +24,8 @@
 static DEFINE_MUTEX(bandwidth_mgr_mutex);
 static struct msm_isp_bandwidth_mgr isp_bandwidth_mgr;
 
-#define MSM_ISP_MIN_AB 450000000
-#define MSM_ISP_MIN_IB 900000000
+#define MSM_ISP_MIN_AB 300000000
+#define MSM_ISP_MIN_IB 450000000
 
 #define VFE40_8974V2_VERSION 0x1001001A
 
@@ -130,9 +130,7 @@ int msm_isp_update_bandwidth(enum msm_isp_hw_client client,
 	mutex_lock(&bandwidth_mgr_mutex);
 	if (!isp_bandwidth_mgr.use_count ||
 		!isp_bandwidth_mgr.bus_client) {
-		pr_err("%s:error bandwidth manager inactive use_cnt:%d bus_clnt:%d\n",
-			__func__, isp_bandwidth_mgr.use_count,
-			isp_bandwidth_mgr.bus_client);
+		pr_err("%s: bandwidth manager inactive\n", __func__);
 		return -EINVAL;
 	}
 
@@ -168,11 +166,8 @@ void msm_isp_deinit_bandwidth_mgr(enum msm_isp_hw_client client)
 		return;
 	}
 
-	if (!isp_bandwidth_mgr.bus_client) {
-		pr_err("%s:%d error: bus client invalid\n", __func__, __LINE__);
-		mutex_unlock(&bandwidth_mgr_mutex);
+	if (!isp_bandwidth_mgr.bus_client)
 		return;
-	}
 
 	msm_bus_scale_client_update_request(
 	   isp_bandwidth_mgr.bus_client, 0);
@@ -233,8 +228,6 @@ static inline void msm_isp_get_vt_tstamp(struct vfe_device *vfe_dev,
 		avtimer_msw_2nd = msm_camera_io_r(vfe_dev->p_avtimer_msw);
 	} while ((avtimer_msw_1st != avtimer_msw_2nd)
 		&& (iter++ < AVTIMER_ITERATION_CTR));
-	/*Just return if the MSW TimeStamps don't converge after
-	a few iterations Application needs to handle the zero TS values*/
 	if (iter >= AVTIMER_ITERATION_CTR) {
 		pr_err("%s: AVTimer MSW TS did not converge !!!\n", __func__);
 		return;
@@ -377,12 +370,6 @@ long msm_isp_ioctl(struct v4l2_subdev *sd,
 	long rc = 0;
 	struct vfe_device *vfe_dev = v4l2_get_subdevdata(sd);
 
-	/* Use real time mutex for hard real-time ioctls such as
-	 * buffer operations and register updates.
-	 * Use core mutex for other ioctls that could take
-	 * longer time to complete such as start/stop ISP streams
-	 * which blocks until the hardware start/stop streaming
-	 */
 	ISP_DBG("%s cmd: %d\n", __func__, _IOC_TYPE(cmd));
 	switch (cmd) {
 	case VIDIOC_MSM_VFE_REG_CFG: {
@@ -664,7 +651,6 @@ int msm_isp_proc_cmd(struct vfe_device *vfe_dev, void *arg)
 		(void __user *)(proc_cmd->cfg_cmd),
 		sizeof(struct msm_vfe_reg_cfg_cmd) * proc_cmd->num_cfg)) {
 		rc = -EFAULT;
-		pr_err("%s: copy_from_user reg_cfg_cmd failed\n", __func__); // HTC
 		goto copy_cmd_failed;
 	}
 
@@ -672,7 +658,6 @@ int msm_isp_proc_cmd(struct vfe_device *vfe_dev, void *arg)
 			(void __user *)(proc_cmd->cfg_data),
 			proc_cmd->cmd_len)) {
 		rc = -EFAULT;
-		pr_err("%s: copy_from_user cfg_data failed\n", __func__); // HTC
 		goto copy_cmd_failed;
 	}
 
@@ -683,7 +668,6 @@ int msm_isp_proc_cmd(struct vfe_device *vfe_dev, void *arg)
 	if (copy_to_user(proc_cmd->cfg_data,
 			cfg_data, proc_cmd->cmd_len)) {
 		rc = -EFAULT;
-		pr_err("%s: copy_to_user cfg_data failed\n", __func__); // HTC
 		goto copy_cmd_failed;
 	}
 
@@ -760,7 +744,7 @@ int msm_isp_cal_word_per_line(uint32_t output_format,
 	case V4L2_PIX_FMT_NV61:
 		val = CAL_WORD(pixel_per_line, 1, 8);
 		break;
-		/*TD: Add more image format*/
+		
 	default:
 		msm_isp_print_fourcc_error(__func__, output_format);
 		break;
@@ -870,7 +854,7 @@ int msm_isp_get_bit_per_pixel(uint32_t output_format)
 	case V4L2_PIX_FMT_NV61:
 	case V4L2_PIX_FMT_Y16:
 		return 16;
-		/*TD: Add more image format*/
+		
 	default:
 		msm_isp_print_fourcc_error(__func__, output_format);
 		return -EINVAL;
@@ -933,123 +917,6 @@ static inline void msm_isp_update_error_info(struct vfe_device *vfe_dev,
 	vfe_dev->error_info.error_count++;
 }
 
-static inline void msm_isp_process_overflow_irq(
-	struct vfe_device *vfe_dev,
-	uint32_t *irq_status0, uint32_t *irq_status1)
-{
-	uint32_t overflow_mask;
-	uint32_t halt_restart_mask0, halt_restart_mask1;
-	/*Mask out all other irqs if recovery is started*/
-	if (atomic_read(&vfe_dev->error_info.overflow_state) !=
-		NO_OVERFLOW) {
-		vfe_dev->hw_info->vfe_ops.core_ops.
-			get_halt_restart_mask(&halt_restart_mask0,
-				&halt_restart_mask1);
-		*irq_status0 &= halt_restart_mask0;
-		*irq_status1 &= halt_restart_mask1;
-		return;
-	}
-
-	/*Check if any overflow bit is set*/
-	vfe_dev->hw_info->vfe_ops.core_ops.
-		get_overflow_mask(&overflow_mask);
-	overflow_mask &= *irq_status1;
-	if (overflow_mask) {
-		pr_warning("%s: Bus overflow detected: 0x%x\n",
-				__func__, overflow_mask);
-		atomic_set(&vfe_dev->error_info.overflow_state,
-				OVERFLOW_DETECTED);
-		pr_warning("%s: Start bus overflow recovery\n", __func__);
-		/*Store current IRQ mask*/
-		vfe_dev->hw_info->vfe_ops.core_ops.get_irq_mask(vfe_dev,
-			&vfe_dev->error_info.overflow_recover_irq_mask0,
-			&vfe_dev->error_info.overflow_recover_irq_mask1);
-		/*Stop CAMIF Immediately*/
-		vfe_dev->hw_info->vfe_ops.core_ops.
-			update_camif_state(vfe_dev, DISABLE_CAMIF_IMMEDIATELY);
-		/*Halt the hardware & Clear all other IRQ mask*/
-		vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev, 0);
-		/*Update overflow state*/
-		atomic_set(&vfe_dev->error_info.overflow_state, HALT_REQUESTED);
-		*irq_status0 = 0;
-		*irq_status1 = 0;
-	}
-}
-
-static inline void msm_isp_reset_burst_count(
-	struct vfe_device *vfe_dev)
-{
-	int i;
-	struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-	struct msm_vfe_axi_stream *stream_info;
-	struct msm_vfe_axi_stream_request_cmd framedrop_info;
-	for (i = 0; i < MAX_NUM_STREAM; i++) {
-		stream_info = &axi_data->stream_info[i];
-		if (stream_info->state != ACTIVE)
-			continue;
-		if (stream_info->stream_type == BURST_STREAM &&
-			stream_info->num_burst_capture != 0) {
-			framedrop_info.burst_count =
-				stream_info->num_burst_capture;
-			framedrop_info.frame_skip_pattern =
-				stream_info->frame_skip_pattern;
-			framedrop_info.init_frame_drop = 0;
-			msm_isp_calculate_framedrop(&vfe_dev->axi_data,
-				&framedrop_info);
-		}
-	}
-}
-
-static inline void msm_isp_process_overflow_recovery(
-	struct vfe_device *vfe_dev,
-	uint32_t irq_status0, uint32_t irq_status1)
-{
-	uint32_t halt_restart_mask0, halt_restart_mask1;
-	vfe_dev->hw_info->vfe_ops.core_ops.
-		get_halt_restart_mask(&halt_restart_mask0,
-							  &halt_restart_mask1);
-	irq_status0 &= halt_restart_mask0;
-	irq_status1 &= halt_restart_mask1;
-	if (irq_status0 == 0 && irq_status1 == 0)
-		return;
-
-	switch (atomic_read(&vfe_dev->error_info.overflow_state)) {
-	case HALT_REQUESTED: {
-		pr_err("%s: Halt done, Restart Pending\n", __func__);
-		/*Reset the hardware*/
-		vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev, 0);
-		/*Update overflow state*/
-		atomic_set(&vfe_dev->error_info.overflow_state,
-				RESTART_REQUESTED);
-	}
-		break;
-	case RESTART_REQUESTED: {
-		pr_err("%s: Restart done, Resuming\n", __func__);
-		/*Reset the burst stream frame drop pattern, in the
-		 *case where bus overflow happens during the burstshot,
-		 *the framedrop pattern might be updated after reg update
-		 *to skip all the frames after the burst shot. The burst shot
-		 *might not be completed due to the overflow, so the framedrop
-		 *pattern need to change back to the original settings in order
-		 *to recovr from overflow.
-		 */
-		msm_isp_reset_burst_count(vfe_dev);
-		vfe_dev->hw_info->vfe_ops.axi_ops.
-			reload_wm(vfe_dev, 0xFFFFFFFF);
-		vfe_dev->hw_info->vfe_ops.core_ops.restore_irq_mask(vfe_dev);
-		vfe_dev->hw_info->vfe_ops.core_ops.reg_update(vfe_dev);
-		memset(&vfe_dev->error_info, 0, sizeof(vfe_dev->error_info));
-		atomic_set(&vfe_dev->error_info.overflow_state, NO_OVERFLOW);
-		vfe_dev->hw_info->vfe_ops.core_ops.
-			update_camif_state(vfe_dev, ENABLE_CAMIF);
-	}
-		break;
-	case NO_OVERFLOW:
-	case OVERFLOW_DETECTED:
-	default:
-		break;
-	}
-}
 irqreturn_t msm_isp_process_irq(int irq_num, void *data)
 {
 	unsigned long flags;
@@ -1060,8 +927,6 @@ irqreturn_t msm_isp_process_irq(int irq_num, void *data)
 
 	vfe_dev->hw_info->vfe_ops.irq_ops.
 		read_irq_status(vfe_dev, &irq_status0, &irq_status1);
-	msm_isp_process_overflow_irq(vfe_dev,
-		&irq_status0, &irq_status1);
 	vfe_dev->hw_info->vfe_ops.core_ops.
 		get_error_mask(&error_mask0, &error_mask1);
 	error_mask0 &= irq_status0;
@@ -1125,13 +990,6 @@ void msm_isp_do_tasklet(unsigned long data)
 		irq_status1 = queue_cmd->vfeInterruptStatus1;
 		ts = queue_cmd->ts;
 		spin_unlock_irqrestore(&vfe_dev->tasklet_lock, flags);
-		if (atomic_read(&vfe_dev->error_info.overflow_state) !=
-			NO_OVERFLOW) {
-			pr_err("Azam: There is Overflow, kickup recovery mann!!!!");
-			msm_isp_process_overflow_recovery(vfe_dev,
-				irq_status0, irq_status1);
-			continue;
-		}
 		ISP_DBG("%s: status0: 0x%x status1: 0x%x\n",
 			__func__, irq_status0, irq_status1);
 		irq_ops->process_reset_irq(vfe_dev,
@@ -1182,17 +1040,13 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return -EBUSY;
 	}
 
-	pr_info("%s: reset vfe\n", __func__); //HTC_sungfeng
-    memset(&vfe_dev->error_info, 0, sizeof(vfe_dev->error_info));
-    atomic_set(&vfe_dev->error_info.overflow_state, NO_OVERFLOW);
-
-    rc = vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev, 1);
-
+	pr_info("%s: reset vfe\n", __func__); 
+	rc = vfe_dev->hw_info->vfe_ops.core_ops.reset_hw(vfe_dev);
 	if (rc <= 0) {
 		pr_err("%s: reset timeout\n", __func__);
-		//HTC_START : Force VFE dump log for vfe reset timeout issue
+		
 		msm_camera_io_dump_2(vfe_dev->vfe_base, 0x900);
-		//HTC_END
+		
 		mutex_unlock(&vfe_dev->core_mutex);
 		mutex_unlock(&vfe_dev->realtime_mutex);
 		return -EINVAL;
@@ -1209,13 +1063,14 @@ int msm_isp_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		vfe_dev->soc_hw_version = msm_camera_io_r(vfe_dev->tcsr_base);
 		break;
 	default:
-		/* SOC HARDWARE VERSION NOT SUPPORTED */
+		
 		vfe_dev->soc_hw_version = 0x00;
 	}
 
 	memset(&vfe_dev->axi_data, 0, sizeof(struct msm_vfe_axi_shared_data));
 	memset(&vfe_dev->stats_data, 0,
 		sizeof(struct msm_vfe_stats_shared_data));
+	memset(&vfe_dev->error_info, 0, sizeof(vfe_dev->error_info));
 	vfe_dev->axi_data.hw_info = vfe_dev->hw_info->axi_hw_info;
 	vfe_dev->vfe_open_cnt++;
 	vfe_dev->taskletq_idx = 0;
@@ -1241,7 +1096,7 @@ int msm_isp_close_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return -ENODEV;
 	}
 
-	rc = vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev, 1);
+	rc = vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev);
 	if (rc <= 0)
 		pr_err("%s: halt timeout rc=%ld\n", __func__, rc);
 

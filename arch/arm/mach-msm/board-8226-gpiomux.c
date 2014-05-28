@@ -275,9 +275,8 @@ static struct gpiomux_setting  qua_mi2s_act_cfg = {
 
 static struct gpiomux_setting codec_intr = {
 	.func = GPIOMUX_FUNC_GPIO,
-	.drv = GPIOMUX_DRV_2MA,
-	.pull = GPIOMUX_PULL_DOWN,
-	.dir = GPIOMUX_IN,
+	.drv = GPIOMUX_DRV_6MA,
+	.pull = GPIOMUX_PULL_UP,
 };
 
 static struct gpiomux_setting codec_reset = {
@@ -557,7 +556,6 @@ static struct gpiomux_setting cam_settings[] = {
 		.func = GPIOMUX_FUNC_GPIO,  
 		.drv = GPIOMUX_DRV_2MA,
 		.pull = GPIOMUX_PULL_DOWN,
-		.dir = GPIOMUX_OUT_LOW,
 	},
 };
 

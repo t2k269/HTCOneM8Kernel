@@ -31,7 +31,7 @@
 #define QPNP_VIB_MIN_LEVEL		12
 
 #define QPNP_VIB_DEFAULT_TIMEOUT	15000
-#define QPNP_VIB_DEFAULT_VTG_LVL	2700
+#define QPNP_VIB_DEFAULT_VTG_LVL	3100
 
 #define QPNP_VIB_EN			BIT(7)
 #define QPNP_VIB_VTG_SET_MASK		0x1F
@@ -248,38 +248,6 @@ static enum hrtimer_restart qpnp_vib_timer_func(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static ssize_t voltage_level_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
-{
-	struct timed_output_dev *time_cdev;
-	struct qpnp_vib *vib ;
-	time_cdev = (struct timed_output_dev *) dev_get_drvdata(dev);
-	vib = container_of(time_cdev, struct qpnp_vib, timed_dev);
-	return sprintf(buf, "[VIB] voltage input:%dmV\n", vib->vtg_level*100);
-}
-
-static ssize_t voltage_level_store(
-		struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t size)
-{
-	int voltage_input;
-	struct timed_output_dev *time_cdev;
-	struct qpnp_vib *vib ;
-	time_cdev = (struct timed_output_dev *) dev_get_drvdata(dev);
-	vib = container_of(time_cdev, struct qpnp_vib, timed_dev);
-
-	voltage_input = -1;
-	sscanf(buf, "%d ",&voltage_input);
-	printk(KERN_INFO "[VIB] voltage input: %d\n", voltage_input);
-	if (voltage_input/100 < QPNP_VIB_MIN_LEVEL || voltage_input/100 > QPNP_VIB_MAX_LEVEL){
-		printk(KERN_INFO "[VIB] invalid voltage level input: %d\n",voltage_input);
-		return -EINVAL;
-	}
-	vib->vtg_level = voltage_input/100;
-	return size;
-}
-
-static DEVICE_ATTR(voltage_level, S_IRUGO | S_IWUSR, voltage_level_show, voltage_level_store);
 #ifdef CONFIG_PM
 static int qpnp_vibrator_suspend(struct device *dev)
 {
@@ -359,11 +327,6 @@ static int __devinit qpnp_vibrator_probe(struct spmi_device *spmi)
 	rc = timed_output_dev_register(&vib->timed_dev);
 	if (rc < 0)
 		return rc;
-
-	rc = device_create_file(vib->timed_dev.dev, &dev_attr_voltage_level);
-	if (rc < 0) {
-		printk(KERN_INFO "[VIB] %s, create sysfs fail: voltage_level\n", __func__);
-	}
 
 #ifdef CONFIG_VIB_TRIGGERS
 	vib->enabler.name = "qpnp-vibrator";

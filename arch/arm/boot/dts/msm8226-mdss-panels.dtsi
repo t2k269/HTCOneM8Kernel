@@ -10,18 +10,10 @@
  * GNU General Public License for more details.
  */
 
-/dts-v1/;
-/include/ "msm8926-qrd-skug.dtsi"
-
-/ {
-	model = "Qti MSM 8926 QRD SKUG PVT";
-	compatible = "qcom,msm8926-qrd", "qcom,msm8926", "qcom,qrd";
-	qcom,board-id = <0x2000b 5>;
-};
-
-&pm8226_vadc {
-	chan@30 {
-		label = "batt_therm";
-		qcom,scale-function = <9>;
-	};
-};
+/include/ "dsi-panel-hx8394a-720p-video.dtsi"
+/include/ "dsi-panel-nt35590-720p-video.dtsi"
+/include/ "dsi-panel-nt35521-720p-video.dtsi"
+/include/ "dsi-panel-nt35596-1080p-video.dtsi"
+/include/ "dsi-panel-nt35590-720p-cmd.dtsi"
+/include/ "dsi-panel-ssd2080m-720p-video.dtsi"
+/include/ "dsi-panel-jdi-1080p-video.dtsi"

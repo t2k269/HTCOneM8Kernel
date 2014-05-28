@@ -1077,7 +1077,7 @@ static void jbd2_mark_journal_empty(journal_t *journal)
 }
 
 
-void jbd2_journal_update_sb_errno(journal_t *journal)
+static void jbd2_journal_update_sb_errno(journal_t *journal)
 {
 	journal_superblock_t *sb = journal->j_superblock;
 
@@ -1089,7 +1089,6 @@ void jbd2_journal_update_sb_errno(journal_t *journal)
 
 	jbd2_write_superblock(journal, WRITE_SYNC);
 }
-EXPORT_SYMBOL(jbd2_journal_update_sb_errno);
 
 static int journal_get_superblock(journal_t *journal)
 {

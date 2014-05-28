@@ -83,7 +83,7 @@ static uint32_t correction_table[10] = {0};
 static uint32_t adctable[10] = {0};
 static int record_adc[6] = {0};
 static int avg_min_adc = 0;
-static int p_status = 1;
+static int p_status;
 static int p_irq_status;
 static int prev_correction;
 static uint8_t ps1_canc_set;
@@ -825,10 +825,7 @@ static void sensor_irq_do_work(struct work_struct *work)
 			report_psensor_input_event(lpi, 2);
 			p_irq_status = 1;
 		}
-		if (lpi->ps_pocket_mode | p_irq_status)
-			p_status = 0;
-		else
-			p_status = 1;
+		p_status = (lpi->ps_pocket_mode | p_irq_status);
 	}
 
 	if (((add & CM3629_ALS_IF_L) == CM3629_ALS_IF_L) ||
@@ -842,7 +839,7 @@ static void sensor_irq_do_work(struct work_struct *work)
 	}
 
 	if (!(add & 0x3F)) { 
-		if (inter_error < 30) {
+		if (inter_error < 10) {
 			D("[PS][cm3629 warning]%s unkown interrupt: 0x%x!\n",
 			__func__, add);
 			inter_error++ ;
@@ -940,10 +937,7 @@ static void polling_do_work(struct work_struct *w)
 	lpi->j_end = jiffies;
 	if (time_after(lpi->j_end, (lpi->j_start + 3* HZ))){
 		lpi->ps_pocket_mode = 0;
-		if (lpi->ps_pocket_mode | p_irq_status)
-			p_status = 0;
-		else
-			p_status = 1;
+		p_status = (lpi->ps_pocket_mode | p_irq_status);
 	}
 	if (lpi->ps_enable == 0)
 		return;
@@ -1197,7 +1191,7 @@ static int psensor_enable(struct cm3629_info *lpi)
 			lpi->ps_base_index = lpi->mapping_size - 1;
 			if (ret == 0 && lpi->mapping_table != NULL ){
 				queue_delayed_work(lpi->lp_wq, &polling_work,
-					msecs_to_jiffies(POLLING_DELAY));
+					msecs_to_jiffies(1));
 			}
 	}
 	mutex_unlock(&ps_enable_mutex);
@@ -1272,7 +1266,7 @@ static int psensor_disable(struct cm3629_info *lpi)
 			_cm3629_I2C_Write2(lpi->cm3629_slave_address, PS_1_thd, cmd, 3);
 		}
 	}
-	p_status = 1;
+	p_status = 0;
 	mutex_unlock(&ps_enable_mutex);
 	D("[PS][cm3629] %s --%d\n", __func__, lpi->ps_enable);
 	return ret;

@@ -2477,8 +2477,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if ((!test_bit(ID, &motg->inputs) ||
 				test_bit(ID_A, &motg->inputs)) && otg->host) {
 			USBH_INFO("!id || id_a\n");
-
-			cancel_delayed_work_sync(&motg->chg_work);
 			if (msm_chg_mhl_detect(motg)) {
 				work = 1;
 				break;
@@ -2621,8 +2619,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				test_bit(ID_A, &motg->inputs) ||
 				test_bit(ID_B, &motg->inputs) ||
 				!test_bit(B_SESS_VLD, &motg->inputs)) {
-
-			cancel_delayed_work_sync(&motg->chg_work);
 			if (motg->connect_type != CONNECT_TYPE_NONE) {
 				motg->connect_type = CONNECT_TYPE_NONE;
 				queue_work(motg->usb_wq, &motg->notifier_work);
@@ -3167,10 +3163,6 @@ void msm_otg_set_vbus_state(int online)
 	if (online) {
 		pr_debug("PMIC: BSV set\n");
 		set_bit(B_SESS_VLD, &motg->inputs);
-		if (motg->connect_type == 0) {
-			motg->connect_type = CONNECT_TYPE_NOTIFY;
-			queue_work(motg->usb_wq, &motg->notifier_work);
-		}
 	} else {
 		pr_debug("PMIC: BSV clear\n");
 		clear_bit(B_SESS_VLD, &motg->inputs);
@@ -4065,6 +4057,7 @@ int *htc_msm_otg_get_phy_init(int *phy_init)
 {
 	__maybe_unused char *mid;
 	__maybe_unused int i;
+
 	printk("[USB] use dt phy init\n");
 	return phy_init;
 }

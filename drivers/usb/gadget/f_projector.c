@@ -223,8 +223,7 @@ static DECLARE_WORK(conf_usb_work, usb_setup_android_projector);
 
 static void usb_setup_android_projector(struct work_struct *work)
 {
-    msleep(100);
-    android_switch_htc_mode();
+	android_switch_htc_mode();
 	htc_mode_enable(1);
 
 	if (projector_dev) {

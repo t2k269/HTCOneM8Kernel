@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -286,7 +286,7 @@ static int dispatcher_context_sendcmds(struct adreno_device *adreno_dev,
 
 
 	if (count)
-		wake_up_all(&drawctxt->wq);
+		wake_up_interruptible_all(&drawctxt->wq);
 
 
 	return (count || requeued) ? 1 : 0;

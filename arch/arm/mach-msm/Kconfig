@@ -261,8 +261,6 @@ config ARCH_MSM8974
 	select MSM_GPIOMUX
 	select MULTI_IRQ_HANDLER
 	select MSM_MULTIMEDIA_USE_ION
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select MSM_PIL
 	select MSM_SPM_V2
 	select MSM_L2_SPM
@@ -311,15 +309,11 @@ config ARCH_APQ8084
 	select MSM_SPM_V2
 	select MSM_L2_SPM
 	select MSM_RPM_SMD
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select ENABLE_VMALLOC_SAVINGS
 
 config ARCH_MPQ8092
 	bool "MPQ8092"
 	select ARCH_MSM_KRAITMP
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select GPIO_MSM_V3
 	select ARM_GIC
 	select MULTI_IRQ_HANDLER
@@ -338,8 +332,6 @@ config ARCH_FSM9900
 	select MSM_SCM
 	select MSM_GPIOMUX
 	select MULTI_IRQ_HANDLER
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select MSM_PIL
 	select MSM_NATIVE_RESTART
 	select MSM_RESTART_V2
@@ -443,8 +435,6 @@ config ARCH_MSMKRYPTON
 	select MEMORY_HOLE_CARVEOUT
 	select QMI_ENCDEC
 	select MSM_CORTEX_A7
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 
 config ARCH_MSM8610
 	bool "MSM8610"
@@ -474,8 +464,6 @@ config ARCH_MSM8610
 	select MSM_CORTEX_A7
 	select CPU_FREQ_MSM
 	select CPU_FREQ
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select MSM_PIL
 	select MSM_RUN_QUEUE_STATS
 	select ARM_HAS_SG_CHAIN
@@ -487,6 +475,7 @@ config ARCH_MSM8610
 	select MSM_RPM_LOG
 	select MSM_IOMMU_SYNC
 	select MSM_RPM_STATS_LOG
+	select ENABLE_VMALLOC_SAVINGS
 
 config ARCH_MSM8226
 	bool "MSM8226"
@@ -516,8 +505,6 @@ config ARCH_MSM8226
 	select MSM_CORTEX_A7
 	select CPU_FREQ_MSM
 	select CPU_FREQ
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select MSM_PIL
 	select MSM_RUN_QUEUE_STATS
 	select ARM_HAS_SG_CHAIN
@@ -538,8 +525,6 @@ config ARCH_MSMSAMARIUM
 	select ARM_GIC
 	select CPU_V7
 	select MSM_SCM
-	select PM_DEVFREQ
-	select MSM_DEVFREQ_CPUBW
 	select MSM_PIL
 	select MSM_GPIOMUX
 	select MULTI_IRQ_HANDLER
@@ -589,7 +574,6 @@ config  ARCH_MSM_SCORPION
 config  ARCH_MSM_KRAIT
 	bool
 	select ARM_L1_CACHE_SHIFT_6
-	select DEVFREQ_GOV_MSM_CPUBW_HWMON
 
 config  MSM_CORTEX_A7
 	bool
@@ -1991,20 +1975,6 @@ config MSM_CPU_FREQ_MIN
 
 endif # CPU_FREQ_MSM
 
-config MSM_DEVFREQ_CPUBW
-	bool "Devfreq device for CPU<->DDR IB/AB BW voting"
-	depends on PM_DEVFREQ
-	select DEVFREQ_GOV_PERFORMANCE
-	select DEVFREQ_GOV_POWERSAVE
-	select DEVFREQ_GOV_USERSPACE
-	select DEVFREQ_GOV_MSM_CPUFREQ
-	default n
-	help
-	  Different devfreq governors use this devfreq device to make CPU to
-	  DDR IB/AB bandwidth votes. This driver provides a SoC topology
-	  agnostic interface to so that some of the devfreq governors can be
-	  shared across SoCs.
-
 config MSM_AVS_HW
 	bool "Enable Adaptive Voltage Scaling (AVS)"
 	default n
@@ -3174,35 +3144,23 @@ config HTC_POWER_DEBUG
 	 clock/gpio/qpnp pin dump, wakeup source, kerenl top and autosuspend
 	 stage footprint
 
-config MACH_BAGOSS
-        depends on ARCH_MSM8974
-        bool "MSM8974 BAGOSS"
-        help
-          Support for HTC MSM8974 BAGOSS
-
-config MACH_GLU_U
-        depends on ARCH_MSM8974
-        bool "MSM8974 GLU_U"
-        help
-          Support for HTC MSM8974 GLU_U
-
-config MACH_GLU_WLJ
-        depends on ARCH_MSM8974
-        bool "MSM8974 GLU_WLJ"
-        help
-          Support for HTC MSM8974 GLU_WLJ
-
 config MACH_M8
         depends on ARCH_MSM8974
         bool "MSM8974 M8"
         help
           Support for HTC MSM8974 M8
 
-config MACH_NAME
-        string "Macine Name"
-        default ""
+config MACH_M8_WHL
+        depends on ARCH_MSM8974
+        bool "MSM8974 M8_WHL"
         help
-          Support for MACH Name
+          Support for HTC MSM8974 M8_WHL
+
+config MACH_M8_WL
+        depends on ARCH_MSM8974
+        bool "MSM8974 M8_WL"
+        help
+          Support for HTC MSM8974 M8_WL
 
 endif
 
@@ -3211,5 +3169,4 @@ config PERFLOCK
     depends on HTC_PNPMGR
     default n
     bool "HTC Performance Lock"
-
 

@@ -2002,13 +2002,8 @@ end_coredump:
         }
         set_fs(fs);
 close_fail:
-	if (map_file){
-#ifdef CONFIG_HTC_INIT_COREDUMP
-		if( task_tgid_vnr(current) == 1)
-			vfs_fsync(map_file, 1);
-#endif
+	if (map_file)
 		filp_close(map_file, NULL);
-	}
     }
 map_fail:
 cleanup:

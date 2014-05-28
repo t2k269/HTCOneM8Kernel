@@ -174,6 +174,5 @@ struct sdhci_host {
 
 	u32 auto_cmd_err_sts;
 	unsigned long private[0] ____cacheline_aligned;
-	int disable_sdcard_uhs;
 };
 #endif 

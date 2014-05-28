@@ -41,6 +41,7 @@
 #include <linux/iopoll.h>
 #include <linux/android_alarm.h>
 #include <linux/proc_fs.h>
+#include <mach/devices_cmdline.h>
 
 #include "sdhci-pltfm.h"
 
@@ -266,7 +267,6 @@ struct sdhci_msm_pltfm_data {
 	u32 *sup_clk_table;
 	unsigned char sup_clk_cnt;
 	int slot_type;
-	int disable_sdcard_uhs;
 };
 
 struct sdhci_msm_bus_vote {
@@ -365,18 +365,6 @@ int mmc_is_sd_host(struct mmc_host *mmc)
 	return is_sd_platform(msm_host->pdata);
 }
 
-int mmc_is_mmc_host(struct mmc_host *mmc)
-{
-	struct sdhci_host *host = mmc_priv(mmc);
-	struct sdhci_pltfm_host *pltfm_host;
-	struct sdhci_msm_host *msm_host;
-
-	pltfm_host = sdhci_priv(host);
-	msm_host = pltfm_host->priv;
-
-	return is_mmc_platform(msm_host->pdata);
-
-}
 static inline int msm_dll_poll_ck_out_en(struct sdhci_host *host,
 						u8 poll)
 {
@@ -1197,6 +1185,7 @@ static int sdhci_msm_dt_get_pad_drv_info(struct device *dev, int id,
 	u32 *tmp;
 	struct sdhci_msm_pad_drv_data *drv_data;
 	struct sdhci_msm_pad_drv *drv;
+	char *mid;
 
 	switch (id) {
 	case 1:
@@ -1238,16 +1227,28 @@ static int sdhci_msm_dt_get_pad_drv_info(struct device *dev, int id,
 	drv_data->on_sdr104 = drv + drv_data->size;
 	drv_data->off = drv + drv_data->size * 2;
 
-	ret = sdhci_msm_dt_get_array(dev, "qcom,pad-drv-on",
-			&tmp, &len, drv_data->size);
-	if (ret)
-		goto out;
+	mid = board_mid();
+	if (!strncmp(mid, "0P9O0", 5) &&
+		!sdhci_msm_dt_get_array(dev, "qcom,pad-drv-on-ulca",
+		    &tmp, &len, drv_data->size)) {
+		for (i = 0; i < len; i++) {
+			drv_data->on[i].no = base + i;
+			drv_data->on[i].val = tmp[i];
+			dev_dbg(dev, "%s: val[%d]=0x%x\n", __func__,
+					i, drv_data->on[i].val);
+		}
+	} else {
+		ret = sdhci_msm_dt_get_array(dev, "qcom,pad-drv-on",
+				&tmp, &len, drv_data->size);
+		if (ret)
+			goto out;
 
-	for (i = 0; i < len; i++) {
-		drv_data->on[i].no = base + i;
-		drv_data->on[i].val = tmp[i];
-		dev_dbg(dev, "%s: val[%d]=0x%x\n", __func__,
-				i, drv_data->on[i].val);
+		for (i = 0; i < len; i++) {
+			drv_data->on[i].no = base + i;
+			drv_data->on[i].val = tmp[i];
+			dev_dbg(dev, "%s: val[%d]=0x%x\n", __func__,
+					i, drv_data->on[i].val);
+		}
 	}
 
 	ret = sdhci_msm_dt_get_array(dev, "qcom,pad-drv-on-sdr104",
@@ -1482,9 +1483,6 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 
 	if (of_get_property(np, "htc,pon_support", NULL))
 		pdata->caps2 |= MMC_CAP2_POWEROFF_NOTIFY;
-
-	if (of_get_property(np, "htc,disable_sdcard_uhs", NULL))
-		pdata->disable_sdcard_uhs = 1;
 
 	return pdata;
 out:
@@ -2630,9 +2628,6 @@ static int __devinit sdhci_msm_probe(struct platform_device *pdev)
 		if (!msm_host->pdata) {
 			dev_err(&pdev->dev, "DT parsing error\n");
 			goto pltfm_free;
-		} else {
-			if (msm_host->pdata->disable_sdcard_uhs)
-				host->disable_sdcard_uhs = 1;
 		}
 	} else {
 		dev_err(&pdev->dev, "No device tree node\n");

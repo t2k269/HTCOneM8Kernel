@@ -61,14 +61,13 @@ enum {
 	FULL_BAT,
 	OVER_VCHG,
 	BATT_STATE,
-	BATT_CABLEIN,
+	OVERLOAD,
 };
 
 enum htc_batt_rt_attr {
 	HTC_BATT_RT_VOLTAGE = 0,
 	HTC_BATT_RT_CURRENT,
 	HTC_BATT_RT_TEMPERATURE,
-	HTC_BATT_RT_VOLTAGE_UV,
 };
 
 struct battery_info_reply {

@@ -532,18 +532,13 @@ static void reset_config(struct usb_composite_dev *cdev)
 	struct usb_function		*f;
 
 	DBG(cdev, "reset config\n");
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	printk("[USB]%s disable+\n",__func__);
-#endif
+
 	list_for_each_entry(f, &cdev->config->functions, list) {
 		if (f->disable)
 			f->disable(f);
 
 		bitmap_zero(f->endpoints, 32);
 	}
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	printk("[USB]%s disable-\n",__func__);
-#endif
 	cdev->config = NULL;
 }
 
@@ -751,9 +746,6 @@ int usb_remove_config(struct usb_composite_dev *cdev,
 	spin_unlock_irqrestore(&cdev->lock, flags);
 	os_type = OS_NOT_YET;
 	fsg_update_mode(0);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	printk("[USB]%s unbind+\n",__func__);
-#endif
 	return unbind_config(cdev, config);
 }
 

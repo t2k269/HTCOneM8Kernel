@@ -24,14 +24,9 @@
 #include <linux/vmalloc.h>
 #include "ion_priv.h"
 
-#define IONPOOL_MAGIC 0x1F3D5B79
-
 struct ion_page_pool_item {
-	unsigned int guard;
-	unsigned int magic;
 	struct page *page;
 	struct list_head list;
-	unsigned long ts;
 };
 
 
@@ -82,10 +77,6 @@ static int ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
 		return -ENOMEM;
 
 	mutex_lock(&pool->mutex);
-	item->guard = 0x0;
-	item->magic = IONPOOL_MAGIC;
-	item->ts = jiffies;
-
 	item->page = page;
 	if (PageHighMem(page)) {
 		list_add_tail(&item->list, &pool->high_items);
@@ -115,17 +106,8 @@ static struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high)
 		pool->low_count--;
 	}
 
-	if (item->guard || (item->magic != IONPOOL_MAGIC)) {
-		pr_warn("[WARN] %s: possible memory corruption detected. \n", __func__);
-		pr_warn("  pool(%p)={order=%d, count=%d/%d, mask=0x%x}\n",
-			pool, pool->order, pool->high_count, pool->low_count, pool->gfp_mask);
-		pr_warn("  item(%p)={0x%x, 0x%08x, %p, %lu} was created since %d msec ago.\n",
-			item, item->guard, item->magic, item->page, item->ts,
-			jiffies_to_msecs(jiffies - item->ts));
-	}
 	list_del(&item->list);
 	page = item->page;
-	item->magic = ~IONPOOL_MAGIC;
 	kfree(item);
 	return page;
 }
@@ -183,10 +165,10 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
 		struct page *page;
 
 		mutex_lock(&pool->mutex);
-		if (pool->low_count) {
-			page = ion_page_pool_remove(pool, false);
-		} else if (high && pool->high_count) {
+		if (high && pool->high_count) {
 			page = ion_page_pool_remove(pool, true);
+		} else if (pool->low_count) {
+			page = ion_page_pool_remove(pool, false);
 		} else {
 			mutex_unlock(&pool->mutex);
 			break;

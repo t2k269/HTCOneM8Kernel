@@ -768,11 +768,11 @@ static void irq_timeout_handler(struct work_struct *w)
 
 	dev_context = i2c_get_clientdata(device_addresses[0].client);
 	hw_context = (struct drv_hw_context *)&dev_context->drv_context;
+	pr_info("[MHL]%s:fake_cable_out:%d\n", __func__, dev_context->fake_cable_out);
 
 	if (!dev_context || !hw_context)
 		return;
 
-	pr_info("[MHL]%s:fake_cable_out:%d\n", __func__, dev_context->fake_cable_out);
 	if (dev_context->fake_cable_out) {
 		disable_irq_nosync(dev_context->client->irq);
 		drv_info.mhl_device_initialize(hw_context, true);
@@ -892,7 +892,6 @@ static int mhl_power_on(void)
 static int mhl_get_gpio_dt_data(struct device *dev)
 {
 	int rc = 0, tmp;
-	uint32_t chip_id = 0;
 	struct device_node *of_node = NULL;
 	struct mhl_dev_context *dev_context;
 	struct drv_hw_context *hw_context;
@@ -902,42 +901,29 @@ static int mhl_get_gpio_dt_data(struct device *dev)
 
 	of_node = dev->of_node;
 	drv_info.reset_pin = of_get_named_gpio(of_node, "mhl-rst-gpio", 0);
-	if (!gpio_is_valid(drv_info.reset_pin)) {
+	if (drv_info.reset_pin < 0) {
 		PR_DISP_ERR("%s: Can't get mhl-rst-gpio\n", __func__);
 		return -EINVAL;
-	} else {
-		pr_info("[MHL]rst_gpio[%d]=%d,PwrOn Pull_High", drv_info.reset_pin,
-				gpio_get_value_cansleep(drv_info.reset_pin));
-		gpio_set_value_cansleep(drv_info.reset_pin, 1);
-		msleep(100);	
-		platform_signals[TX_HW_RESET].gpio_number = drv_info.reset_pin;
 	}
+	platform_signals[TX_HW_RESET].gpio_number = drv_info.reset_pin;
 
 	drv_info.intr_pin = of_get_named_gpio(of_node, "mhl-intr-gpio", 0);
-	if (!gpio_is_valid(drv_info.intr_pin)) {
+	if (drv_info.intr_pin < 0) {
 		PR_DISP_ERR("%s: Can't get mhl-intr-gpio\n", __func__);
 		return -EINVAL;
 	}
 
-	chip_id = get_device_id();
-	switch (chip_id) {
-	case DEVICE_ID_8558:
+	if (get_device_id() == DEVICE_ID_8558) {
 		drv_info.fw_wake_pin = of_get_named_gpio(of_node, "mhl-fw-wake-gpio", 0);
 		if (drv_info.fw_wake_pin < 0) {
 			PR_DISP_DEBUG("%s: Can't get mhl-fw-wake-gpio\n", __func__);
 			return -EINVAL;
 		}
 		gpio_index = drv_info.fw_wake_pin;
-		break;
-	case DEVICE_ID_8240:
-		break;
-	default:
-		pr_err("[MHL]%s get_device_id exeception,%#x",__func__, chip_id);
-		return -EINVAL;
 	}
 
 	drv_info.dpdn_pin = of_get_named_gpio(of_node, "mhl-dpdn-gpio", 0);
-	if (!gpio_is_valid(drv_info.dpdn_pin)) {
+	if (drv_info.dpdn_pin < 0) {
 		PR_DISP_ERR("%s: Can't get mhl-dpdn-gpio\n", __func__);
 		return -EINVAL;
 	}
@@ -1140,6 +1126,9 @@ static struct i2c_driver si_8240_8558_mhl_tx_i2c_driver = {
 static void __init si_8240_8558_init_async(void *unused, async_cookie_t cookie)
 {
 	int ret = -EFAULT;
+
+	PR_DISP_INFO("%s driver starting!\n", MHL_DRIVER_NAME);
+
 	ret = i2c_add_driver(&si_8240_8558_mhl_tx_i2c_driver);
 	if (ret < 0) {
 		MHL_TX_DBG_INFO(,"[ERROR] ret:%d failed !\n",ret);

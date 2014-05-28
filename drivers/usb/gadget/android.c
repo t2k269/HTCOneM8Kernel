@@ -36,10 +36,6 @@
 #include <mach/board_htc.h>
 
 #include "gadget_chips.h"
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-#include "debug.h"
-#endif
-
 
 enum {
 	OS_NOT_YET,
@@ -469,13 +465,7 @@ static int android_enable(struct android_dev *dev)
 				return err;
 			}
 		}
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-		dbg_event(0xFF,"ANDENA",0);
-#endif
 		usb_gadget_connect(cdev->gadget);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-		dbg_event(0xFF,"CONNEND",0);
-#endif
 	}
 
 	return err;
@@ -488,13 +478,7 @@ static void android_disable(struct android_dev *dev)
 
 	printk(KERN_INFO "[USB]%s disable_depth %d\n",__func__,dev->disable_depth);
 	if (dev->disable_depth++ == 0) {
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-		dbg_event(0xFF,"ANDDIS",0);
-#endif
 		usb_gadget_disconnect(cdev->gadget);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-		dbg_event(0xFF,"DISCEND",0);
-#endif
 		
 		usb_ep_dequeue(cdev->gadget->ep0, cdev->req);
 
@@ -641,7 +625,6 @@ static struct android_usb_function adb_function = {
 	.cleanup	= adb_function_cleanup,
 	.bind_config	= adb_function_bind_config,
 };
-
 #if 0
 static void adb_ready_callback(void)
 {
@@ -2780,8 +2763,6 @@ static int android_enable_function(struct android_dev *dev,
 	return -EINVAL;
 }
 
-#include "htc_attr.c"
-
 
 static ssize_t remote_wakeup_show(struct device *pdev,
 		struct device_attribute *attr, char *buf)
@@ -2819,22 +2800,6 @@ static ssize_t remote_wakeup_store(struct device *pdev,
 		else
 			conf->usb_config.bmAttributes &=
 					~USB_CONFIG_ATT_WAKEUP;
-
-	return size;
-}
-
-static ssize_t restart_adbd_store(struct device *pdev,
-		struct device_attribute *attr, const char *buff, size_t size)
-{
-	int enable = 0;
-
-	sscanf(buff, "%d", &enable);
-
-	pr_debug("restart adbd = %d\n", enable);
-
-	if (enable){
-		android_force_reset();
-	}
 
 	return size;
 }
@@ -3070,16 +3035,13 @@ static ssize_t bugreport_debug_store(struct device *pdev,
 	int enable = 0, ats = 0;
 	sscanf(buff, "%d", &enable);
 	ats = board_get_usb_ats();
-
-	if (enable == 5 && ats)
+	if (enable && ats)
 		bugreport_debug = 1;
-	else if (enable == 0 && ats) {
+	else {
 		bugreport_debug = 0;
 		del_timer(&adb_read_timer);
 	}
-
-	pr_info("bugreport_debug = %d, enable=%d, ats = %d\n", bugreport_debug, enable, ats);
-
+	pr_info("bugreport_debug = %d, ats = %d\n", enable, ats);
 	return size;
 }
 
@@ -3137,7 +3099,9 @@ DESCRIPTOR_STRING_ATTR(iSerial, serial_string)
 #endif
 static DEVICE_ATTR(functions, S_IRUGO | S_IWUSR, functions_show,
 						 functions_store);
-static DEVICE_ATTR(restart_adbd, 0664, NULL, restart_adbd_store);
+#if 0
+static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, enable_show, enable_store);
+#endif
 static DEVICE_ATTR(pm_qos, S_IRUGO | S_IWUSR,
 		pm_qos_show, pm_qos_store);
 static DEVICE_ATTR(state, S_IRUGO, state_show, NULL);
@@ -3158,7 +3122,9 @@ static struct device_attribute *android_usb_attributes[] = {
 	&dev_attr_iSerial,
 	#endif
 	&dev_attr_functions,
-	&dev_attr_restart_adbd,
+	#if 0
+	&dev_attr_enable,
+	#endif
 	&dev_attr_pm_qos,
 	&dev_attr_state,
 	&dev_attr_remote_wakeup,
@@ -3166,6 +3132,7 @@ static struct device_attribute *android_usb_attributes[] = {
 	NULL
 };
 
+#include "htc_attr.c"
 
 static int android_bind_config(struct usb_configuration *c)
 {

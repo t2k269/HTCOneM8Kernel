@@ -463,7 +463,7 @@ void __diagfwd_dbg_raw_data(void *buf, const char *src, unsigned dbg_flag, unsig
 extern int wrap_enabled;
 extern uint16_t wrap_count;
 #if defined(CONFIG_ARCH_MSM8X60) || defined(CONFIG_ARCH_MSM8960) \
-   || defined(CONFIG_ARCH_MSM8974) || defined(CONFIG_ARCH_MSM8226)
+   || defined(CONFIG_ARCH_MSM8974)
 #define    SMDDIAG_NAME "DIAG"
 #else
 #define    SMDDIAG_NAME "SMD_DIAG"

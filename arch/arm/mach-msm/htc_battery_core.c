@@ -231,7 +231,6 @@ static int htc_battery_get_charging_status(void)
 	case CHARGER_MHL_AC:
 	case CHARGER_DETECTING:
 	case CHARGER_UNKNOWN_USB:
-	case CHARGER_NOTIFY:
 		if (battery_core_info.htc_charge_full)
 			ret = POWER_SUPPLY_STATUS_FULL;
 		else {
@@ -459,33 +458,6 @@ static ssize_t htc_battery_set_phone_call(struct device *dev,
 
 	return count;
 }
-
-static ssize_t htc_battery_set_play_music(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	unsigned long play_music = 0;
-	int rc = 0;
-
-	rc = strict_strtoul(buf, 10, &play_music);
-	if (rc)
-		return rc;
-
-	BATT_LOG("set context play music=%lu", play_music);
-
-	if (!battery_core_info.func.func_context_event_handler) {
-		BATT_ERR("No context_event_notify function!");
-		return -ENOENT;
-	}
-
-	if (play_music)
-		battery_core_info.func.func_context_event_handler(EVENT_MUSIC_START);
-	else
-		battery_core_info.func.func_context_event_handler(EVENT_MUSIC_STOP);
-
-	return count;
-}
-
 static ssize_t htc_battery_set_network_search(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -601,7 +573,6 @@ static struct device_attribute htc_battery_attrs[] = {
 	HTC_BATTERY_ATTR(full_bat),
 	HTC_BATTERY_ATTR(over_vchg),
 	HTC_BATTERY_ATTR(batt_state),
-	HTC_BATTERY_ATTR(batt_cable_in),
 
 	__ATTR(batt_attr_text, S_IRUGO, htc_battery_show_batt_attr, NULL),
 	__ATTR(batt_power_meter, S_IRUGO, htc_battery_show_cc_attr, NULL),
@@ -622,8 +593,6 @@ static struct device_attribute htc_set_delta_attrs[] = {
 		htc_battery_charger_ctrl_timer),
 	__ATTR(phone_call, S_IWUSR | S_IWGRP, NULL,
 		htc_battery_set_phone_call),
-	__ATTR(play_music, S_IWUSR | S_IWGRP, NULL,
-		htc_battery_set_play_music),
 	__ATTR(network_search, S_IWUSR | S_IWGRP, NULL,
 		htc_battery_set_network_search),
 	__ATTR(navigation, S_IWUSR | S_IWGRP, NULL,
@@ -638,7 +607,6 @@ static struct device_attribute htc_battery_rt_attrs[] = {
 	__ATTR(batt_vol_now, S_IRUGO, htc_battery_rt_attr_show, NULL),
 	__ATTR(batt_current_now, S_IRUGO, htc_battery_rt_attr_show, NULL),
 	__ATTR(batt_temp_now, S_IRUGO, htc_battery_rt_attr_show, NULL),
-	__ATTR(voltage_now, S_IRUGO, htc_battery_rt_attr_show, NULL),
 };
 
 
@@ -924,11 +892,9 @@ static ssize_t htc_battery_show_property(struct device *dev,
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 				battery_core_info.rep.batt_state);
 		break;
-	case BATT_CABLEIN:
-		if(battery_core_info.rep.charging_source == CHARGER_BATTERY)
-			i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n", 0);
-		else
-			i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n", 1);
+	case OVERLOAD:
+		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
+				battery_core_info.rep.overload);
 		break;
 	default:
 		i = -EINVAL;

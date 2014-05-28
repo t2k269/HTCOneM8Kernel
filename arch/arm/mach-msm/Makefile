@@ -299,7 +299,6 @@ obj-$(CONFIG_ARCH_MPQ8092) += gdsc.o
 obj-$(CONFIG_ARCH_APQ8084) += gdsc.o
 obj-$(CONFIG_KRAIT_REGULATOR) += krait-regulator.o  krait-regulator-pmic.o
 obj-$(CONFIG_ARCH_MSM8974) += htc_awb_cal.o
-obj-$(CONFIG_ARCH_MSM8226) += htc_awb_cal.o
 ifdef CONFIG_BT
   obj-$(CONFIG_ARCH_MSM8974) += htc_bdaddress.o
 endif #CONFIG_BT
@@ -449,7 +448,6 @@ obj-$(CONFIG_MSM_CPU_PWRCTL) +=  msm_cpu_pwrctl.o
 obj-$(CONFIG_ARCH_MSM8974) += msm_mpmctr.o
 obj-$(CONFIG_MSM_CPR_REGULATOR) += cpr-regulator.o
 obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o
-obj-$(CONFIG_MSM_DEVFREQ_CPUBW) += devfreq_cpubw.o
 
 obj-$(CONFIG_WALL_CLK) += wallclk.o
 obj-$(CONFIG_WALL_CLK_SYSFS) += wallclk_sysfs.o
@@ -457,7 +455,10 @@ obj-$(CONFIG_WALL_CLK_SYSFS) += wallclk_sysfs.o
 obj-y += display/
 obj-$(CONFIG_ARCH_MSM8974) += board-htc-8974.o htc_acoustic_alsa.o
 obj-$(CONFIG_ARCH_MSM8226) += htc_acoustic_alsa.o
+
 obj-$(CONFIG_MACH_M8) += board-m8-gpiomux.o board-m8-audio.o
+obj-$(CONFIG_MACH_M8_WHL) += board-m8-gpiomux.o board-m8-audio.o
+obj-$(CONFIG_MACH_M8_WL) += board-m8-gpiomux.o board-m8-audio.o
 
 obj-$(CONFIG_HTC_HEADSET_PMIC) += htc_headset_pmic.o
 obj-$(CONFIG_HTC_HEADSET_GPIO) += htc_headset_gpio.o
@@ -468,10 +469,8 @@ obj-y += htc_debug_tools.o
 endif
 obj-$(CONFIG_HTC_DEBUG_FOOTPRINT) += htc_mnemosyne.o
 obj-$(CONFIG_HTC_DEBUG_FOOTPRINT) += htc_footprint.o
-obj-y += smlog.o
 
 obj-$(CONFIG_PERFLOCK) += perflock.o
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o
-obj-$(CONFIG_PERFMAP) += perfmap.o
 obj-$(CONFIG_HTC_RPM_CMD) += rpm_htc_cmd.o
 obj-$(CONFIG_HTC_MONITOR) += htc_monitor.o

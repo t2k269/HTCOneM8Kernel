@@ -3,23 +3,6 @@
 #include <mach/devices_dtb.h>
 #include <linux/module.h>
 
-#define RESET_MSG_LENGTH 512
-static unsigned char google_boot_reason[RESET_MSG_LENGTH];
-int __init google_boot_reason_init(char *s)
-{
-	snprintf(google_boot_reason, sizeof(google_boot_reason) - 1,
-		"Boot info:\nLast boot reason: %s\n\n", s);
-
-        return 1;
-}
-__setup("bootreason=", google_boot_reason_init);
-
-unsigned char *board_get_google_boot_reason(void)
-{
-        return google_boot_reason;
-}
-EXPORT_SYMBOL(board_get_google_boot_reason);
-
 static unsigned long boot_powerkey_debounce_ms;
 int __init boot_powerkey_debounce_time_init(char *s)
 {
@@ -57,15 +40,6 @@ int board_get_usb_ats(void)
 		return usb_ats;
 }
 EXPORT_SYMBOL(board_get_usb_ats);
-
-void board_set_usb_ats(int type)
-{
-	if (type == 0)
-		usb_ats = 0;
-	else
-		usb_ats = 1;
-}
-EXPORT_SYMBOL(board_set_usb_ats);
 
 #define RAW_SN_LEN	4
 static int tamper_sf;

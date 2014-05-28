@@ -49,7 +49,7 @@
 
 struct sensors_classdev {
 	struct device		*dev;
-	struct list_head	node;
+	struct list_head	 node;
 	const char		*name;
 	const char		*vendor;
 	int			version;
@@ -61,13 +61,6 @@ struct sensors_classdev {
 	int			min_delay;
 	int			fifo_reserved_event_count;
 	int			fifo_max_event_count;
-	unsigned int		enabled;
-	unsigned int		delay_msec;
-	
-	int	(*sensors_enable)(struct sensors_classdev *sensors_cdev,
-					unsigned int enabled);
-	int	(*sensors_poll_delay)(struct sensors_classdev *sensors_cdev,
-					unsigned int delay_msec);
 };
 
 extern int sensors_classdev_register(struct device *parent,

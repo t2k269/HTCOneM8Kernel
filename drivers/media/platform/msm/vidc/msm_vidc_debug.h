@@ -18,7 +18,7 @@
 #include "msm_vidc_internal.h"
 
 #define VIDC_DBG_TAG "msm_vidc: %d: "
-#define REDUCE_KERNEL_ERROR_LOG 1
+
 
 enum vidc_msg_prio {
 	VIDC_ERR  = 0x0001,

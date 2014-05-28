@@ -21,8 +21,6 @@
 
 #include "mdss_fb.h"
 #include "mdss_mdp.h"
-#include "mdss_panel.h"
-#include "xlog.h"
 
 #define VSYNC_TIMEOUT_US 100000
 
@@ -250,8 +248,6 @@ static int mdss_mdp_video_add_vsync_handler(struct mdss_mdp_ctl *ctl,
 		goto exit;
 	}
 
-	XLOG(__func__, ctl->num, ctl->vsync_cnt, handle->enabled, 0, 0, 0);
-
 	spin_lock_irqsave(&ctx->vsync_lock, flags);
 	if (!handle->enabled) {
 		handle->enabled = true;
@@ -277,8 +273,6 @@ static int mdss_mdp_video_remove_vsync_handler(struct mdss_mdp_ctl *ctl,
 		pr_err("invalid ctx for ctl=%d\n", ctl->num);
 		return -ENODEV;
 	}
-
-	XLOG(__func__, ctl->num, ctl->vsync_cnt, handle->enabled, 0, 0, 0);
 
 	spin_lock_irqsave(&ctx->vsync_lock, flags);
 	if (handle->enabled) {
@@ -306,7 +300,7 @@ static int mdss_mdp_video_stop(struct mdss_mdp_ctl *ctl)
 		pr_err("invalid ctx for ctl=%d\n", ctl->num);
 		return -ENODEV;
 	}
-	XLOG(__func__, ctl->num, ctl->vsync_cnt, 0, 0, 0, 0);
+
 	if (ctx->timegen_en) {
 		rc = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_BLANK, NULL);
 		if (rc == -EBUSY) {
@@ -365,8 +359,6 @@ static void mdss_mdp_video_vsync_intr_done(void *arg)
 	vsync_time = ktime_get();
 	ctl->vsync_cnt++;
 
-	XLOG(__func__, ctl->num, ctl->vsync_cnt,ctl->vsync_cnt, 0, 0, 0x88888);
-
 	pr_debug("intr ctl=%d vsync cnt=%u vsync_time=%d\n",
 		 ctl->num, ctl->vsync_cnt, (int)ktime_to_ms(vsync_time));
 
@@ -396,7 +388,6 @@ static int mdss_mdp_video_pollwait(struct mdss_mdp_ctl *ctl)
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 
 	if (rc == 0) {
-		XLOG(__func__, ctl->num, ctl->vsync_cnt, 0, 0, 0, 0);
 		pr_debug("vsync poll successful! rc=%d status=0x%x\n",
 				rc, status);
 		ctx->poll_cnt++;
@@ -445,8 +436,6 @@ static int mdss_mdp_video_wait4comp(struct mdss_mdp_ctl *ctl, void *arg)
 			rc = 0;
 		}
 	}
-	mdss_mdp_ctl_notify(ctl,
-			rc ? MDP_NOTIFY_FRAME_TIMEOUT : MDP_NOTIFY_FRAME_DONE);
 
 	if (ctx->wait_pending) {
 		ctx->wait_pending = 0;
@@ -465,9 +454,7 @@ static void mdss_mdp_video_underrun_intr_done(void *arg)
 		return;
 
 	ctl->underrun_cnt++;
-	XLOG(__func__, ctl->num, ctl->underrun_cnt,0,0,0, 0);
 	if (time_after(jiffies, prev_jiffy + 5 * HZ) || !prev_jiffy) {
-		XLOG_TOUT_HANDLER(__func__, 1, 1, 1, 0);
 		pr_info("display underrun detected for ctl=%d count=%d\n", ctl->num,
 			ctl->underrun_cnt);
 		prev_jiffy = jiffies;
@@ -569,8 +556,6 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 		WARN(1, "commit without wait! ctl=%d", ctl->num);
 	}
 
-	XLOG(__func__, ctl->num, ctl->underrun_cnt,0, 0, 0, 0);
-
 	if (!ctx->timegen_en) {
 		rc = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_UNBLANK, NULL);
 		if (rc) {
@@ -602,52 +587,46 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 	return 0;
 }
 
-int mdss_mdp_video_reconfigure_splash_done(struct mdss_mdp_ctl *ctl,
-	bool handoff)
+int mdss_mdp_video_reconfigure_splash_done(struct mdss_mdp_ctl *ctl)
 {
-	struct mdss_panel_data *pdata = ctl->panel_data;
-	int i, ret = 0;
+	struct mdss_panel_data *pdata;
+	int ret = 0, off;
+	int mdss_mdp_rev = MDSS_MDP_REG_READ(MDSS_MDP_REG_HW_VERSION);
+	int mdss_v2_intf_off = 0;
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(ctl->mfd);
-	struct mdss_mdp_video_ctx *ctx;
-	struct mdss_data_type *mdata = ctl->mdata;
 
-	i = ctl->intf_num - MDSS_MDP_INTF0;
-	if (i < mdata->nintf) {
-		ctx = ((struct mdss_mdp_video_ctx *) mdata->video_intf) + i;
-		pr_debug("video Intf #%d base=%p", ctx->intf_num, ctx->base);
-	} else {
-		pr_err("Invalid intf number: %d\n", ctl->intf_num);
-		ret = -EINVAL;
-		goto error;
-	}
+	off = 0;
 
-	if (!handoff) {
-		ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_CONT_SPLASH_BEGIN,
-					      NULL);
-		if (ret) {
-			pr_err("%s: Failed to handle 'CONT_SPLASH_BEGIN' event\n"
-				, __func__);
-			return ret;
-		}
+	pdata = ctl->panel_data;
 
-		mdss_mdp_ctl_write(ctl, 0, MDSS_MDP_LM_BORDER_COLOR);
-		mdp_video_write(ctx, MDSS_MDP_REG_INTF_TIMING_ENGINE_EN, 0);
-
-		
-		msleep(20);
-
-		ret = mdss_mdp_ctl_intf_event(ctl,
-			MDSS_EVENT_CONT_SPLASH_FINISH, NULL);
-	}
-
-error:
 	pdata->panel_info.cont_splash_enabled = 0;
+
+	ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_CONT_SPLASH_BEGIN,
+				      NULL);
+	if (ret) {
+		pr_err("%s: Failed to handle 'CONT_SPLASH_BEGIN' event\n",
+					__func__);
+		return ret;
+	}
+
+	mdss_mdp_ctl_write(ctl, 0, MDSS_MDP_LM_BORDER_COLOR);
+	off = MDSS_MDP_REG_INTF_OFFSET(ctl->intf_num);
+
+	if (mdss_mdp_rev >= MDSS_MDP_HW_REV_102)
+		mdss_v2_intf_off =  0xEC00;
+
+	MDSS_MDP_REG_WRITE(off + MDSS_MDP_REG_INTF_TIMING_ENGINE_EN -
+			mdss_v2_intf_off, 0);
+	
+	msleep(20);
 
 	
 	memblock_free(mdp5_data->splash_mem_addr, mdp5_data->splash_mem_size);
 	free_bootmem_late(mdp5_data->splash_mem_addr,
 				 mdp5_data->splash_mem_size);
 
+	ret = mdss_mdp_ctl_intf_event(ctl, MDSS_EVENT_CONT_SPLASH_FINISH,
+			NULL);
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 	return ret;
 }
@@ -685,7 +664,6 @@ int mdss_mdp_video_start(struct mdss_mdp_ctl *ctl)
 		return -EINVAL;
 	}
 
-	XLOG(__func__, ctl->num, ctl->vsync_cnt, 0, 0, 0, 0x11111);
 	pr_debug("start ctl=%u\n", ctl->num);
 
 	ctl->priv_data = ctx;

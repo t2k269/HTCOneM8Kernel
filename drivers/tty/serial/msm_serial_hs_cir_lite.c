@@ -310,7 +310,7 @@ static int msm_hsl_irda_enable_set(void *data, u64 val)
 		if (msm_cir_port->cir_learn_en)
 			gpio_direction_output(msm_cir_port->cir_learn_en, 1);
 		gpio_direction_output(msm_cir_port->rst_pin, 0);
-		ret = 3;
+		ret = 5;
 		ret |= (int)val;
 		msm_hsl_write(port, ret, UARTDM_IRDA_ADDR);
 		spin_unlock_irqrestore(&port->lock, flags);
@@ -1540,7 +1540,7 @@ static ssize_t enable_cir_store(struct device *dev,
 		if (msm_cir_port->cir_learn_en)
 			gpio_direction_output(msm_cir_port->cir_learn_en, 1);
 		gpio_direction_output(msm_cir_port->rst_pin, 0);
-		ret = 3;
+		ret = 5;
 		ret |= (int)cir_en;
 		msm_hsl_write(port, ret, UARTDM_IRDA_ADDR);
 		spin_unlock_irqrestore(&port->lock, flags);

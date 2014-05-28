@@ -569,7 +569,7 @@ int android_switch_function(unsigned func)
 		PDATA_NOT_DEFINED("vendor/product id");
 
 
-	if (dev->pdata && dev->pdata->match)
+	if (dev->pdata->match)
 		product_id = dev->pdata->match(product_id, intrsharing);
 
 	pr_info("%s: vendor_id=0x%x, product_id=0x%x\n",
@@ -1024,16 +1024,6 @@ static ssize_t show_ats(struct device *dev,
 	return length;
 }
 
-static ssize_t store_ats(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	static int type;
-
-	sscanf(buf, "%d ", &type);
-	board_set_usb_ats(type);
-	return count;
-}
-
 static DEVICE_ATTR(usb_cable_connect, 0444, show_usb_cable_connect, NULL);
 static DEVICE_ATTR(usb_function_switch, 0664,
 		show_usb_function_switch, store_usb_function_switch);
@@ -1050,7 +1040,7 @@ static DEVICE_ATTR(usb_phy_setting, 0664,
 static DEVICE_ATTR(usb_disable, 0664,show_usb_disable_setting, store_usb_disable_setting);
 static DEVICE_ATTR(usb_denied, 0444, show_is_usb_denied, NULL);
 static DEVICE_ATTR(os_type, 0444, show_os_type, NULL);
-static DEVICE_ATTR(ats, 0664, show_ats, store_ats);
+static DEVICE_ATTR(ats, 0444, show_ats, NULL);
 
 static __maybe_unused struct attribute *android_htc_usb_attributes[] = {
 	&dev_attr_usb_cable_connect.attr,

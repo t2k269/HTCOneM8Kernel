@@ -168,7 +168,6 @@ enum qpnp_adc_scale_fn_type {
 	SCALE_THERM_150K_PULLUP,
 	SCALE_QRD_BATT_THERM,
 	SCALE_QRD_SKUAA_BATT_THERM,
-	SCALE_QRD_SKUG_BATT_THERM = 9,
 	SCALE_NONE,
 };
 
@@ -613,11 +612,6 @@ int32_t qpnp_adc_scale_qrd_skuaa_batt_therm(struct qpnp_vadc_chip *dev,
 			const struct qpnp_adc_properties *adc_prop,
 			const struct qpnp_vadc_chan_properties *chan_prop,
 			struct qpnp_vadc_result *chan_rslt);
-int32_t qpnp_adc_scale_qrd_skug_batt_therm(struct qpnp_vadc_chip *dev,
-			int32_t adc_code,
-			const struct qpnp_adc_properties *adc_prop,
-			const struct qpnp_vadc_chan_properties *chan_prop,
-			struct qpnp_vadc_result *chan_rslt);
 int32_t qpnp_adc_scale_batt_id(struct qpnp_vadc_chip *dev, int32_t adc_code,
 			const struct qpnp_adc_properties *adc_prop,
 			const struct qpnp_vadc_chan_properties *chan_prop,
@@ -699,12 +693,6 @@ static inline int32_t qpnp_adc_scale_qrd_batt_therm(
 			struct qpnp_vadc_result *chan_rslt)
 { return -ENXIO; }
 static inline int32_t qpnp_adc_scale_qrd_skuaa_batt_therm(
-			struct qpnp_vadc_chip *vadc, int32_t adc_code,
-			const struct qpnp_adc_properties *adc_prop,
-			const struct qpnp_vadc_chan_properties *chan_prop,
-			struct qpnp_vadc_result *chan_rslt)
-{ return -ENXIO; }
-static inline int32_t qpnp_adc_scale_qrd_skug_batt_therm(
 			struct qpnp_vadc_chip *vadc, int32_t adc_code,
 			const struct qpnp_adc_properties *adc_prop,
 			const struct qpnp_vadc_chan_properties *chan_prop,

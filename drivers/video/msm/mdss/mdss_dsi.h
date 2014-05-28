@@ -81,7 +81,6 @@ enum dsi_panel_bl_ctrl {
 	BL_PWM,
 	BL_WLED,
 	BL_DCS_CMD,
-	BL_I2C,
 	UNKNOWN_CTRL,
 };
 
@@ -306,7 +305,6 @@ struct mdss_dsi_pwrctrl {
 	int (*dsi_regulator_deinit) (struct platform_device *pdev);
 	int (*dsi_power_on) (struct mdss_panel_data *pdata, int enable);
 	void (*dsi_panel_reset) (struct mdss_panel_data *pdata, int enable);
-	void (*bkl_config) (struct mdss_panel_data *pdata, int enable);
 };
 
 enum {

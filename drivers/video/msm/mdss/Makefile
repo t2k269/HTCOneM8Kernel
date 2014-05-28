@@ -16,10 +16,6 @@ ifeq ($(CONFIG_FB_MSM_MDSS),y)
 obj-$(CONFIG_DEBUG_FS) += mdss_debug.o
 endif
 
-ifeq ($(CONFIG_MDSS_DUMP_MDP_UNDERRUN),y)
-obj-$(CONFIG_DEBUG_FS) += xlog.o
-endif
-
 dsi-v2-objs = dsi_v2.o dsi_host_v2.o dsi_io_v2.o
 obj-$(CONFIG_FB_MSM_MDSS) += dsi-v2.o
 

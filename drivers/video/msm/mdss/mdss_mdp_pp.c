@@ -1027,23 +1027,6 @@ static int pp_dspp_setup(u32 disp_num, struct mdss_mdp_mixer *mixer)
 		if (ret < 0)
 			pr_warn("ad_setup(dspp%d) returns %d", dspp_num, ret);
 	}
-
-	if (ctl->mfd->panel_info->pcc_r && ctl->mfd->panel_info->pcc_g
-	&& ctl->mfd->panel_info->pcc_b ) {
-		if (!(mdss_pp_res->pcc_disp_cfg[disp_num].ops & MDP_PP_OPS_DISABLE)) {
-			mdss_pp_res->pcc_disp_cfg[disp_num].ops |= MDP_PP_OPS_WRITE;
-			mdss_pp_res->pcc_disp_cfg[disp_num].r.r = ctl->mfd->panel_info->pcc_r;
-			mdss_pp_res->pcc_disp_cfg[disp_num].g.g = ctl->mfd->panel_info->pcc_g;
-			mdss_pp_res->pcc_disp_cfg[disp_num].b.b = ctl->mfd->panel_info->pcc_b;
-			pp_update_pcc_regs(base + MDSS_MDP_REG_DSPP_PCC_BASE, &mdss_pp_res->pcc_disp_cfg[disp_num]);
-			opmode |= (1 << 4); 
-			flags |= PP_FLAGS_DIRTY_PCC;
-		} else {
-			opmode &= ~(1 << 4);
-			mdss_pp_res->pcc_disp_cfg[disp_num].ops &= ~MDP_PP_OPS_WRITE;
-		}
-	}
-
 	
 	if (ctl->mfd->calib_mode)
 		goto flush_exit;
@@ -2956,9 +2939,8 @@ int mdss_mdp_ad_input(struct msm_fb_data_type *mfd,
 			}
 			mutex_unlock(&ad->lock);
 			mutex_lock(&mfd->bl_lock);
-			if (!mfd->panel_info->act_brt)
-				MDSS_BRIGHT_TO_BL(bl, bl, mfd->panel_info->bl_max,
-								MDSS_MAX_BL_BRIGHTNESS);
+			MDSS_BRIGHT_TO_BL(bl, bl, mfd->panel_info->bl_max,
+							MDSS_MAX_BL_BRIGHTNESS);
 			mdss_fb_set_backlight(mfd, bl);
 			mutex_unlock(&mfd->bl_lock);
 			mutex_lock(&ad->lock);
@@ -3305,7 +3287,7 @@ static void pp_ad_calc_worker(struct work_struct *work)
 				if (ad->state & PP_AD_STATE_BL_LIN) {
 					bl = bl >> ad->bl_bright_shift;
 					bl = min_t(u32, bl,
-						mfd->panel_info->max_brt);
+						MDSS_MAX_BL_BRIGHTNESS);
 					bl = ad->bl_lin_inv[bl];
 					bl = bl << ad->bl_bright_shift;
 				}

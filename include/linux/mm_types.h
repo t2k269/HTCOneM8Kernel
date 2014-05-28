@@ -24,14 +24,6 @@ struct address_space;
 
 #define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
 
-struct page_user_trace {
-	pid_t pid;
-	char comm[16];
-	pid_t tgid;
-	char tgcomm[16];
-	unsigned long entries[UL(CONFIG_HTC_DEBUG_PAGE_ENTRIES_NR)];
-};
-
 struct page {
 	
 	unsigned long flags;		
@@ -97,10 +89,6 @@ struct page {
 
 #ifdef CONFIG_KMEMCHECK
 	void *shadow;
-#endif
-#ifdef CONFIG_HTC_DEBUG_PAGE_USER_TRACE
-	struct page_user_trace trace_alloc;
-	struct page_user_trace trace_free;
 #endif
 }
 #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE

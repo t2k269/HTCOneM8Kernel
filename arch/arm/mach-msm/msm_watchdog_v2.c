@@ -82,13 +82,6 @@ struct msm_watchdog_data {
 	struct notifier_block panic_blk;
 };
 
-#if defined(CONFIG_HTC_DEBUG_WATCHDOG)
-int suspend_watchdog_deferred;
-module_param_named(
-       suspend_watchdog_deferred, suspend_watchdog_deferred, int, S_IRUGO | S_IWUSR | S_IWGRP
-);
-#endif
-
 static int enable = 1;
 module_param(enable, int, 0);
 #if defined(CONFIG_HTC_DEBUG_WATCHDOG)
@@ -133,56 +126,22 @@ static void dump_cpu_alive_mask(struct msm_watchdog_data *wdog_dd)
 	printk(KERN_INFO "cpu alive mask from last pet %s\n", alive_mask_buf);
 }
 
-static int msm_watchdog_do_suspend(void __iomem *base)
-{
-	__raw_writel(1, base + WDT0_RST);
-	__raw_writel(0, base + WDT0_EN);
-#ifdef CONFIG_HTC_DEBUG_FOOTPRINT
-	set_msm_watchdog_en_footprint(0);
-	set_msm_watchdog_pet_footprint((unsigned int)MPM_SLEEP_CLK_BASE);
-#endif
-	mb();
-
-#if defined(CONFIG_HTC_DEBUG_WATCHDOG)
-	pr_debug("MSM Apps Watchdog suspended.\n");
-#endif
-
-	return 0;
-}
-
 static int msm_watchdog_suspend(struct device *dev)
 {
 	struct msm_watchdog_data *wdog_dd =
 			(struct msm_watchdog_data *)dev_get_drvdata(dev);
 	if (!enable)
 		return 0;
-
-#if defined(CONFIG_HTC_DEBUG_WATCHDOG)
-	if (suspend_watchdog_deferred) {
-		set_msm_watchdog_pet_time_utc();
-		return 0;
-	}
-#endif
-
-	msm_watchdog_do_suspend(wdog_dd->base);
-
-	return 0;
-}
-
-static int msm_watchdog_do_resume(void __iomem *base)
-{
-	__raw_writel(1, base + WDT0_EN);
-	__raw_writel(1, base + WDT0_RST);
+	__raw_writel(1, wdog_dd->base + WDT0_RST);
+	__raw_writel(0, wdog_dd->base + WDT0_EN);
 #ifdef CONFIG_HTC_DEBUG_FOOTPRINT
-	set_msm_watchdog_en_footprint(1);
+	set_msm_watchdog_en_footprint(0);
 	set_msm_watchdog_pet_footprint((unsigned int)MPM_SLEEP_CLK_BASE);
 #endif
 	mb();
-
 #if defined(CONFIG_HTC_DEBUG_WATCHDOG)
-	pr_debug("MSM Apps Watchdog resumed.\n");
+	pr_debug("MSM Apps Watchdog suspended.\n");
 #endif
-
 	return 0;
 }
 
@@ -192,58 +151,18 @@ static int msm_watchdog_resume(struct device *dev)
 			(struct msm_watchdog_data *)dev_get_drvdata(dev);
 	if (!enable)
 		return 0;
-
-#if defined(CONFIG_HTC_DEBUG_WATCHDOG)
-	if (suspend_watchdog_deferred) {
-		set_msm_watchdog_pet_time_utc();
-		return 0;
-	}
+	__raw_writel(1, wdog_dd->base + WDT0_EN);
+	__raw_writel(1, wdog_dd->base + WDT0_RST);
+#ifdef CONFIG_HTC_DEBUG_FOOTPRINT
+	set_msm_watchdog_en_footprint(1);
+	set_msm_watchdog_pet_footprint((unsigned int)MPM_SLEEP_CLK_BASE);
 #endif
-
-	msm_watchdog_do_resume(wdog_dd->base);
-
-	return 0;
-}
-
+	mb();
 #if defined(CONFIG_HTC_DEBUG_WATCHDOG)
-int msm_watchdog_suspend_deferred(void)
-{
-	if (!enable)
-		return 0;
-
-	if (!msm_wdt_base) {
-		WARN(1, "try to suspend watchdog before watchdog initialization.\n");
-		return -ENXIO;
-	}
-
-	if (!suspend_watchdog_deferred)
-		return 0;
-
-	msm_watchdog_do_suspend(msm_wdt_base);
-
-	return 0;
-}
-EXPORT_SYMBOL(msm_watchdog_suspend_deferred);
-
-int msm_watchdog_resume_deferred(void)
-{
-	if (!enable)
-		return 0;
-
-	if (!msm_wdt_base) {
-		WARN(1, "try to resume watchdog before watchdog initialization.\n");
-		return -ENXIO;
-	}
-
-	if (!suspend_watchdog_deferred)
-		return 0;
-
-	msm_watchdog_do_resume(msm_wdt_base);
-
-	return 0;
-}
-EXPORT_SYMBOL(msm_watchdog_resume_deferred);
+	pr_debug("MSM Apps Watchdog resumed.\n");
 #endif
+	return 0;
+}
 
 static int panic_wdog_handler(struct notifier_block *this,
 			      unsigned long event, void *ptr)
@@ -728,8 +647,6 @@ static int __devinit msm_watchdog_probe(struct platform_device *pdev)
 		goto err;
 #if defined(CONFIG_HTC_DEBUG_WATCHDOG)
 	msm_wdt_base = wdog_dd->base;
-
-	suspend_watchdog_deferred = 1;
 #endif
 	wdog_dd->dev = &pdev->dev;
 	platform_set_drvdata(pdev, wdog_dd);

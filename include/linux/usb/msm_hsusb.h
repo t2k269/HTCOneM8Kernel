@@ -146,7 +146,7 @@ struct msm_otg_platform_data {
 #define TA_WAIT_VFALL	500	
 
 #ifdef CONFIG_USB_OTG
-#define TA_WAIT_BCON	-1	
+#define TA_WAIT_BCON	30000	
 #else
 #define TA_WAIT_BCON	-1
 #endif

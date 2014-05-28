@@ -240,7 +240,9 @@ static uint8_t vk_press;
 static int i2c_syn_write_byte_data(struct i2c_client *client, uint16_t addr, uint8_t value);
 static int syn_pdt_scan(struct synaptics_ts_data *ts, int num_page);
 static int synaptics_init_panel(struct synaptics_ts_data *ts);
+#if defined(CONFIG_SYNC_TOUCH_STATUS)
 static int i2c_syn_reset_handler(struct synaptics_ts_data *ts, uint8_t reset, char *reason, const char *fun_name);
+#endif
 
 static irqreturn_t synaptics_irq_thread(int irq, void *ptr);
 
@@ -447,6 +449,7 @@ static int i2c_syn_error_handler(struct synaptics_ts_data *ts, uint8_t reset, ch
 	return -EIO;
 }
 
+#if defined(CONFIG_SYNC_TOUCH_STATUS)
 static int i2c_syn_reset_handler(struct synaptics_ts_data *ts, uint8_t reset, char *reason, const char *fun_name)
 {
 	int ret;
@@ -478,6 +481,7 @@ static int i2c_syn_reset_handler(struct synaptics_ts_data *ts, uint8_t reset, ch
 
 	return -EIO;
 }
+#endif
 
 static int get_address_base(struct synaptics_ts_data *ts, uint8_t command, uint8_t type)
 {
@@ -546,7 +550,7 @@ static int wait_flash_interrupt(struct synaptics_ts_data *ts, int attr, int fw)
 			ret = i2c_syn_read(ts->client,
 				get_address_base(ts, 0x01, DATA_BASE) + 1, &data, 1);
 			if (ret < 0)
-				return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "r:1", __func__);
+				return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "r:1", __func__);
 			if ((data & 0x01) == 0x01) {
 #ifdef SYN_FLASH_PROGRAMMING_LOG
 				pr_info("[TP] ATT: %d, status: %x\n", gpio_get_value(attr), data);
@@ -873,47 +877,47 @@ static int syn_set_cover_func(struct synaptics_ts_data *ts, int enable)
 	if (enable) {
 		ret = i2c_syn_write(ts->client, get_address_base(ts, ts->finger_func_idx, CONTROL_BASE) + ts->ctrl_10_offset, ts->cover_setting, 2);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:1", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:1", __func__);
 
 		ret = i2c_syn_write(ts->client, get_address_base(ts, ts->finger_func_idx, CONTROL_BASE) + ts->ctrl_15_offset, &ts->cover_setting[2], 2);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:2", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:2", __func__);
 
 		ts->f54_ctrl89[4] = ts->cover_setting[4];
 		ret = i2c_syn_write(ts->client, get_address_base(ts, 0x54, CONTROL_BASE) + 26, ts->f54_ctrl89, 5);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:3", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:3", __func__);
 
 		ret = i2c_syn_write_byte_data(ts->client, get_address_base(ts, 0x54, CONTROL_BASE) + 28, ts->cover_setting[5]);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:4", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:4", __func__);
 
 		ts->f54_ctrl91[4] = ts->cover_setting[6];
 		ret = i2c_syn_write(ts->client, get_address_base(ts, 0x54, CONTROL_BASE) + 27, ts->f54_ctrl91, 5);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:5", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:5", __func__);
 	} else {
 		ret = i2c_syn_write(ts->client, get_address_base(ts, ts->finger_func_idx, CONTROL_BASE) + ts->ctrl_10_offset, ts->uncover_setting, 2);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:11", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:11", __func__);
 
 		ret = i2c_syn_write(ts->client, get_address_base(ts, ts->finger_func_idx, CONTROL_BASE) + ts->ctrl_15_offset, &ts->uncover_setting[2], 2);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:12", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:12", __func__);
 
 		ts->f54_ctrl89[4] = ts->uncover_setting[4];
 		ret = i2c_syn_write(ts->client, get_address_base(ts, 0x54, CONTROL_BASE) + 26, ts->f54_ctrl89, 5);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:13", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:13", __func__);
 
 		ret = i2c_syn_write_byte_data(ts->client, get_address_base(ts, 0x54, CONTROL_BASE) + 28, ts->uncover_setting[5]);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:14", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:14", __func__);
 
 		ts->f54_ctrl91[4] = ts->uncover_setting[6];
 		ret = i2c_syn_write(ts->client, get_address_base(ts, 0x54, CONTROL_BASE) + 27, ts->f54_ctrl91, 5);
 		if (ret < 0)
-			return i2c_syn_reset_handler(ts, ts->i2c_err_handler_en, "w:15", __func__);
+			return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:15", __func__);
 	}
 	return 0;
 }
@@ -3905,10 +3909,8 @@ static int synaptics_ts_suspend(struct i2c_client *client)
 	pr_info("[TP] %s: enter\n", __func__);
 
 	if (ts->use_irq) {
-		if (ts->irq_enabled) {
-			disable_irq(client->irq);
-			ts->irq_enabled = 0;
-		}
+                disable_irq(client->irq);
+		ts->irq_enabled = 0;
 	} else {
 		hrtimer_cancel(&ts->timer);
 		ret = cancel_work_sync(&ts->work);
@@ -4094,10 +4096,8 @@ static int synaptics_ts_resume(struct i2c_client *client)
 	}
 
 	if (ts->use_irq) {
-		if (!ts->irq_enabled) {
-			enable_irq(client->irq);
-			ts->irq_enabled = 1;
-		}
+                enable_irq(client->irq);
+		ts->irq_enabled = 1;
 	}
 	else
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);

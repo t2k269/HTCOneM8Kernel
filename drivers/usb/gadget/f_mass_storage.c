@@ -2035,9 +2035,7 @@ unknown_cmnd:
 		reply = check_command(common, common->cmnd_size,
 				      DATA_DIR_UNKNOWN, ~0, 0, unknown);
 		if (reply == 0) {
-			if (common->curlun)
-				common->curlun->sense_data = SS_INVALID_COMMAND;
-
+			common->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
 		}
 		break;
@@ -2296,9 +2294,6 @@ static void fsg_disable(struct usb_function *f)
 	}
 	fsg->common->new_fsg = NULL;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	printk("[USB]%s\n",__func__);
-#endif
 }
 
 

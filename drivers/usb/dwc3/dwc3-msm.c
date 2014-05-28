@@ -47,7 +47,6 @@
 #include <mach/msm_bus.h>
 #include <mach/clk.h>
 #include <mach/cable_detect.h>
-
 #include "dwc3_otg.h"
 #include "core.h"
 #include "gadget.h"
@@ -174,7 +173,7 @@ struct dwc3_msm {
 	struct regulator	*ssusb_1p8;
 	struct regulator	*ssusb_vddcx;
 	struct regulator	*dwc3_gdsc;
-	struct wake_lock	cable_detect_wlock;
+	struct wake_lock 	cable_detect_wlock;
 
 	
 	struct regulator	*vbus_otg;
@@ -1474,7 +1473,6 @@ static void dwc3_chg_detect_work(struct work_struct *w)
 		}
 		dev_dbg(mdwc->dev, "chg_type = %s\n",
 			chg_to_string(mdwc->charger.chg_type));
-		pr_info("[USB] %s: chg_type = %s\n",__func__,chg_to_string(mdwc->charger.chg_type));
 		mdwc->charger.notify_detection_complete(mdwc->otg_xceiv->otg,
 								&mdwc->charger);
 		return;
@@ -1958,12 +1956,11 @@ void htc_dwc3_msm_otg_set_vbus_state(int online)
 		queue_delayed_work(system_nrt_wq, &mdwc->resume_work, 20);
 	}
 	if (dotg->connect_type == 0 && online == 1) {
-		dotg->connect_type = CONNECT_TYPE_NOTIFY;
+		dotg->connect_type = CONNECT_TYPE_UNKNOWN;
 		queue_work(dotg->usb_wq, &dotg->notifier_work);
 	}
 	mdwc->vbus_active = online;
-
-	wake_lock_timeout(&mdwc->cable_detect_wlock, 3*HZ);
+	wake_lock_timeout(&mdwc->cable_detect_wlock, 3 * HZ);
 }
 
 #if !(defined(CONFIG_HTC_BATT_8960))
@@ -2334,8 +2331,7 @@ void dwc3_otg_set_id_state(int id)
 		dwc3_msm->id_state = DWC3_ID_FLOAT;
 		htc_id_backup = DWC3_ID_FLOAT;
 	}
-
-	wake_lock_timeout(&dwc3_msm->cable_detect_wlock, 3*HZ);
+	wake_lock_timeout(&dwc3_msm->cable_detect_wlock, 3 * HZ);
 	queue_work(system_nrt_wq, &dwc3_msm->id_work);
 }
 
@@ -2521,7 +2517,6 @@ static int __devinit dwc3_msm_probe(struct platform_device *pdev)
 	context = mdwc;
 	mdwc->dev = &pdev->dev;
 
-	wake_lock_init(&mdwc->cable_detect_wlock, WAKE_LOCK_SUSPEND, "msm_usb_cable");
 	INIT_LIST_HEAD(&mdwc->req_complete_list);
 	INIT_DELAYED_WORK(&mdwc->chg_work, dwc3_chg_detect_work);
 	INIT_DELAYED_WORK(&mdwc->resume_work, dwc3_resume_work);
@@ -2530,11 +2525,12 @@ static int __devinit dwc3_msm_probe(struct platform_device *pdev)
 	INIT_WORK(&mdwc->id_work, dwc3_id_work);
 	INIT_DELAYED_WORK(&mdwc->init_adc_work, dwc3_init_adc_work);
 	init_completion(&mdwc->ext_chg_wait);
+	wake_lock_init(&mdwc->cable_detect_wlock,WAKE_LOCK_SUSPEND, "dwc3_usb_cable");
 
 	ret = dwc3_msm_config_gdsc(mdwc, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to configure usb3 gdsc\n");
-		goto destroy_wlock;
+		return ret;
 	}
 
 	mdwc->xo_clk = clk_get(&pdev->dev, "xo");
@@ -2967,8 +2963,7 @@ put_xo:
 	clk_put(mdwc->xo_clk);
 disable_dwc3_gdsc:
 	dwc3_msm_config_gdsc(mdwc, 0);
-destroy_wlock:
-	wake_lock_destroy(&mdwc->cable_detect_wlock);
+
 	return ret;
 }
 
@@ -2998,7 +2993,6 @@ static int __devexit dwc3_msm_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(mdwc->dev);
 	device_init_wakeup(mdwc->dev, 0);
-	wake_lock_destroy(&mdwc->cable_detect_wlock);
 
 	dwc3_hsusb_ldo_enable(mdwc, 0);
 	dwc3_hsusb_ldo_init(mdwc, 0);

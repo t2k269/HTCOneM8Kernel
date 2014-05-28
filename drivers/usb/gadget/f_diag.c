@@ -861,7 +861,6 @@ int diag_function_add(struct usb_configuration *c, const char *name,
 	} else {
 		pr_err("[USB] %s: name: %s was not found\n",
 			__func__, name);
-		return -ENODEV;
 	}
 
 	list_add_tail(&dev->list_item, &diag_dev_list);

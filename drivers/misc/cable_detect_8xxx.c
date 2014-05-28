@@ -339,7 +339,7 @@ static int cable_detect_get_type(struct cable_detect_info *pInfo)
 		if (adc > -100 && adc < 100)
 			type = second_detect(pInfo);
 		else {
-			if (adc > 120 && adc < 250)
+			if (adc > 150 && adc < 250)
 				type = DOCK_STATE_CAR;
 			else if (adc > 370 && adc < 440)
 				type = DOCK_STATE_USB_HEADSET;
@@ -1096,15 +1096,24 @@ irqreturn_t cable_detection_vbus_irq_handler(void)
 	struct cable_detect_info *pInfo = &the_cable_info;
 
 	CABLE_INFO("%s\n", __func__);
-	spin_lock_irqsave(&pInfo->lock, flags);
-
+#ifdef CONFIG_KDDI_ADAPTER
 	__cancel_delayed_work(&pInfo->vbus_detect_work);
 	queue_delayed_work(pInfo->cable_detect_wq,
-			&pInfo->vbus_detect_work, HZ / 8);
+			&pInfo->vbus_detect_work, HZ / 2);
+	CABLE_INFO("%s go\n", __func__);
+#endif
 
+	spin_lock_irqsave(&pInfo->lock, flags);
+#ifdef CONFIG_KDDI_ADAPTER
+#else
+	queue_delayed_work(pInfo->cable_detect_wq,
+			&pInfo->vbus_detect_work, HZ/10);
+#endif
 	spin_unlock_irqrestore(&pInfo->lock, flags);
-
+#if 1
 	wake_lock_timeout(&pInfo->vbus_wlock, HZ*2);
+#endif
+
 	CABLE_INFO("%s --\n", __func__);
 	return IRQ_HANDLED;
 }

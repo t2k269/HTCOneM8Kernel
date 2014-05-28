@@ -154,8 +154,6 @@ struct CWMCU_data {
 	int gs_kvalue_L2;
 	int gs_kvalue_L3;
 	int gy_kvalue;
-	u8 ALS_goldh;
-	u8 ALS_goldl;
 	int als_kvalue;
 	int ps_kvalue;
 	int ps_kheader;
@@ -979,8 +977,8 @@ static int CWMCU_set_sensor_kvalue(struct CWMCU_data *sensor)
 	int ret;
 	u8 GS_datax,GS_datay,GS_dataz;
 	u8 GY_datax,GY_datay,GY_dataz;
-	u8 ALS_goldh = (sensor->ALS_goldh == 0) ? 0x17 : (sensor->ALS_goldh);
-	u8 ALS_goldl = (sensor->ALS_goldl == 0) ? 0x4D : (sensor->ALS_goldl);
+	u8 ALS_goldh = 0x17;
+	u8 ALS_goldl = 0x4D;
 	u8 ALS_datal, ALS_datah;
 	u8 PS_canc, PS_th;
 	u8 BS_dataa,BS_datab,BS_datac,BS_datad;
@@ -1022,7 +1020,7 @@ static int CWMCU_set_sensor_kvalue(struct CWMCU_data *sensor)
 		ALS_datah = (sensor->als_kvalue >>  8)& 0xFF;
 		CWMCU_i2c_write(sensor, CW_I2C_REG_SENSORS_CALIBRATOR_SET_DATA_LIGHT,&ALS_datah,1);
 		sensor->ls_calibrated = 1;
-		D("Set light-sensor kvalue is %x %x, gold = (0x%x, 0x%x)\n", ALS_datah,ALS_datal, ALS_goldh, ALS_goldl);
+		D("Set light-sensor kvalue is %x %x \n", ALS_datah,ALS_datal);
 	}
 
 	if(((sensor->ps_kheader & (0x50 << 24)) == (0x50 << 24)) && ((sensor->ps_kheader & (0x53 << 16)) == (0x53 << 16))){
@@ -2856,8 +2854,6 @@ static int mcu_parse_dt(struct device *dev, struct CWMCU_data *pdata)
 	pdata->gs_kvalue_R2 = 0;
 	pdata->gs_kvalue_R3 = 0;
 	pdata->gy_kvalue = 0;
-	pdata->ALS_goldh = 0;
-	pdata->ALS_goldl = 0;
 	if ((gyro_sensor_offset = of_find_node_by_path(CALIBRATION_DATA_PATH))) {
 		gyro_sensor_cali_data = (unsigned char*) of_get_property(gyro_sensor_offset, GYRO_SENSOR_FLASH_DATA, &gyro_sensor_cali_size);
 		printk("%s:gyro cali_size = %d\n", __func__, gyro_sensor_cali_size);
@@ -2983,22 +2979,6 @@ static int mcu_parse_dt(struct device *dev, struct CWMCU_data *pdata)
                 D("%s: Gyro axes = %d", __func__, pdata->Gyro_axes);
         } else
                 D("%s: Gyro axes not found", __func__);
-
-        prop = of_find_property(dt, "mcu,ALS_goldh", NULL);
-        if (prop) {
-                of_property_read_u32(dt, "mcu,ALS_goldh", &buf);
-                pdata->ALS_goldh = buf;
-                D("%s: ALS_goldh = 0x%x", __func__, pdata->ALS_goldh);
-        } else
-                D("%s: ALS_goldh not found", __func__);
-
-        prop = of_find_property(dt, "mcu,ALS_goldl", NULL);
-        if (prop) {
-                of_property_read_u32(dt, "mcu,ALS_goldl", &buf);
-                pdata->ALS_goldl = buf;
-                D("%s: ALS_goldl = 0x%x", __func__, pdata->ALS_goldl);
-        } else
-                D("%s: ALS_goldl not found", __func__);
 
         return 0;
 }
@@ -3197,8 +3177,6 @@ static int __devinit CWMCU_i2c_probe(struct i2c_client *client,
 			sensor->Magnetic_axes = ((struct CWMCU_platform_data *)sensor->client->dev.platform_data)->Magnetic_axes;
 			sensor->Gyro_axes = ((struct CWMCU_platform_data *)sensor->client->dev.platform_data)->Gyro_axes;
 			sensor->gpio_wake_mcu = ((struct CWMCU_platform_data *)sensor->client->dev.platform_data)->gpio_wake_mcu;
-			sensor->ALS_goldl = ((struct CWMCU_platform_data *)sensor->client->dev.platform_data)->ALS_goldl;
-			sensor->ALS_goldh = ((struct CWMCU_platform_data *)sensor->client->dev.platform_data)->ALS_goldh;
                 }
         }
 #if 0

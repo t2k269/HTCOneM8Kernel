@@ -609,24 +609,12 @@ int msm_vdec_release_buf(struct msm_vidc_inst *inst,
 					b->m.planes[extra_idx].m.userptr;
 			else
 				buffer_info.extradata_addr = 0;
-			buffer_info.response_required = true;
-			init_completion(
-				&inst->completions[SESSION_MSG_INDEX
-				(SESSION_RELEASE_BUFFER_DONE)]);
+			buffer_info.response_required = false;
 			rc = call_hfi_op(hdev, session_release_buffers,
 				(void *)inst->session, &buffer_info);
 			if (rc)
 				dprintk(VIDC_ERR,
 				"vidc_hal_session_release_buffers failed");
-			rc = wait_for_completion_timeout(
-				&inst->completions[SESSION_MSG_INDEX(SESSION_RELEASE_BUFFER_DONE)],
-				msecs_to_jiffies(msm_vidc_hw_rsp_timeout));
-			if (!rc) {
-				dprintk(VIDC_ERR, "Wait interrupted or timeout: %d\n", rc);
-				msm_comm_recover_from_session_error(inst);
-				rc = -EIO;
-			}
-
 		break;
 	default:
 		dprintk(VIDC_ERR, "Buffer type not recognized: %d\n", b->type);
@@ -983,17 +971,11 @@ int msm_vdec_s_fmt(struct msm_vidc_inst *inst, struct v4l2_format *f)
 			rc = -EINVAL;
 			goto err_invalid_fmt;
 		}
-		rc = msm_comm_try_state(inst, MSM_VIDC_CORE_INIT_DONE);
-		if (rc) {
-			dprintk(VIDC_ERR, "Failed to initialize instance\n");
-			goto err_invalid_fmt;
-		}
 		if (!(get_hal_codec_type(fmt->fourcc) &
 			inst->core->dec_codec_supported)) {
 			dprintk(VIDC_ERR,
-				"Codec(0x%x) is not present in the supported codecs list(0x%x)\n",
-				get_hal_codec_type(fmt->fourcc),
-				inst->core->dec_codec_supported);
+				"Codec(0x%x) not supported\n",
+				get_hal_codec_type(fmt->fourcc));
 			rc = -EINVAL;
 			goto err_invalid_fmt;
 		}
@@ -1428,19 +1410,7 @@ int msm_vdec_cmd(struct msm_vidc_inst *inst, struct v4l2_decoder_cmd *dec)
 	}
 	switch (dec->cmd) {
 	case V4L2_DEC_QCOM_CMD_FLUSH:
-		if (core->state != VIDC_CORE_INVALID &&
-			inst->state ==  MSM_VIDC_CORE_INVALID) {
-			rc = msm_comm_recover_from_session_error(inst);
-			if (rc)
-				dprintk(VIDC_ERR,
-					"Failed to recover from session_error: %d\n",
-					rc);
-		}
 		rc = msm_comm_flush(inst, dec->flags);
-		if (rc) {
-			dprintk(VIDC_ERR,
-					"Failed to flush buffers: %d\n", rc);
-		}
 		break;
 	case V4L2_DEC_CMD_STOP:
 		if (core->state != VIDC_CORE_INVALID &&

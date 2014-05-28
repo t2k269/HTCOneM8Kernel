@@ -16,7 +16,6 @@
 #include <linux/mmc/host.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/ratelimit.h>
 
 struct mmc_cd_gpio {
 	unsigned int gpio;
@@ -50,13 +49,14 @@ static irqreturn_t mmc_cd_gpio_irqt(int irq, void *dev_id)
 		goto out;
 
 	if (status ^ cd->status) {
-		printk_ratelimited(KERN_INFO "%s: slot status change detected (%d -> %d), GPIO_ACTIVE_%s\n",
+		pr_info("%s: slot status change detected (%d -> %d), GPIO_ACTIVE_%s\n",
 				mmc_hostname(host), cd->status, status,
 				(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH) ?
 				"HIGH" : "LOW");
 		cd->status = status;
-		
-		host->caps |= host->caps_uhs;
+		if (host->caps & (MMC_CAP_SET_XPC_330 | MMC_CAP_SET_XPC_300 |
+			MMC_CAP_SET_XPC_180))
+			host->caps |= MMC_CAP_UHS_SDR104;
 		host->redetect_cnt = 0;
 		
 		mmc_detect_change(host, msecs_to_jiffies(100));

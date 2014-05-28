@@ -1849,7 +1849,7 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 
 			
 			if ((portchange & USB_PORT_STAT_C_CONNECTION))
-				return -EAGAIN;
+				return -ENOTCONN;
 
 			if (!(portstatus & USB_PORT_STAT_RESET) &&
 			    (portstatus & USB_PORT_STAT_ENABLE)) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -124,7 +124,6 @@ struct kgsl_iommu_device {
 	bool clk_enabled;
 	struct kgsl_device *kgsldev;
 	int fault;
-	atomic_t clk_enable_count;
 };
 
 struct kgsl_iommu_unit {
@@ -138,6 +137,8 @@ struct kgsl_iommu_unit {
 struct kgsl_iommu {
 	struct kgsl_iommu_unit iommu_units[KGSL_IOMMU_MAX_UNITS];
 	unsigned int unit_count;
+	unsigned int iommu_last_cmd_ts;
+	bool clk_event_queued;
 	struct kgsl_device *device;
 	unsigned int ctx_offset;
 	struct kgsl_iommu_register_list *iommu_reg_list;
@@ -150,13 +151,6 @@ struct kgsl_iommu {
 struct kgsl_iommu_pt {
 	struct iommu_domain *domain;
 	struct kgsl_iommu *iommu;
-};
-
-struct kgsl_iommu_disable_clk_param {
-	struct kgsl_mmu *mmu;
-	int rb_level;
-	int ctx_id;
-	unsigned int ts;
 };
 
 #endif

@@ -26,7 +26,6 @@
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
-#include "xlog.h"
 
 static unsigned char *mdss_dsi_base;
 struct mdss_dsi_pwrctrl pwrctrl_pdata;
@@ -770,8 +769,6 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 	pr_debug("%s+:event=%d\n", __func__, event);
-
-	XLOG(__func__, event, (int)arg, ctrl_pdata->ndx, 0, 0, 0x3333);
 
 	switch (event) {
 	case MDSS_EVENT_UNBLANK:

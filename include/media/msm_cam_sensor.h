@@ -395,7 +395,6 @@ typedef struct{
 	uint8_t VCM_VENDOR_ID_VERSION;
 	uint8_t VCM_VENDOR;
 	uint8_t ACT_ID;
-	uint32_t MODULE_ID_AB;
 }af_value_t;
 
 struct sensorb_cfg_data {
@@ -542,8 +541,6 @@ enum msm_actuator_cfg_type_t {
 	CFG_SET_OIS_MODE,
 	CFG_UPDATE_OIS_TBL,
 	CFG_IAF_MOVE_FOCUS,
-	CFG_GET_VCM_SORTING,
-	CFG_GET_VCM_LOOP_GAIN_SORTING,
 };
 
 enum actuator_type {
@@ -582,7 +579,6 @@ struct msm_actuator_move_params_t {
 	int8_t sign_dir;
 	int16_t dest_step_pos;
 	int32_t num_steps;
-	uint16_t curr_lens_pos;
 	struct damping_params_t *ringing_params;
 };
 
@@ -661,7 +657,6 @@ struct msm_actuator_af_OTP_info_t {
 	uint8_t VCM_Vendor;
 	uint8_t act_id;
 	char act_name[MAX_SENSOR_NAME];
-	uint32_t MODULE_ID_AB;
 };
 
 struct msm_actuator_get_ois_info_t {
@@ -736,13 +731,6 @@ struct msm_actuator_cfg_data {
 		struct sensor_actuator_info_t sensor_actuator_info;
 	
 	} cfg;
-    
-	int16_t max_diff;
-	uint32_t gain_G1[5];
-	uint32_t gain_G2[5];
-	uint8_t vcm_freq;
-	uint16_t vcm_freq_ms22e;
-	
 };
 
 enum msm_actuator_write_type {

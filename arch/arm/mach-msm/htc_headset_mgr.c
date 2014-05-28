@@ -2041,7 +2041,6 @@ static void headset_power(int enable)
 
 static void headset_init(void)
 {
-	int ret=0;
 	uint8_t i;
 	uint32_t hs_onewire_gpio[] = {
 		GPIO_CFG(htc_headset_mgr_data.rx_gpio, 0, GPIO_CFG_INPUT,
@@ -2049,23 +2048,11 @@ static void headset_init(void)
 		GPIO_CFG(htc_headset_mgr_data.tx_gpio, 0, GPIO_CFG_OUTPUT,
 				GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
 	};
-	uint32_t hs_onewire_gpio_rx_dn[] = {
-		GPIO_CFG(htc_headset_mgr_data.rx_gpio, 0, GPIO_CFG_INPUT,
-				GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-		GPIO_CFG(htc_headset_mgr_data.tx_gpio, 0, GPIO_CFG_OUTPUT,
-				GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	};
 	HS_LOG("%s-Init gpio[%d %d] alt:%d", __func__, htc_headset_mgr_data.tx_gpio,
 		htc_headset_mgr_data.rx_gpio, htc_headset_mgr_data.wire_alt);
 	for (i = 0; i < ARRAY_SIZE(hs_onewire_gpio); i++)
-		{
-			if(htc_headset_mgr_data.rx_gpio_pulldn)
-				ret = gpio_tlmm_config(hs_onewire_gpio_rx_dn[i], GPIO_CFG_ENABLE);
-			else
-				ret = gpio_tlmm_config(hs_onewire_gpio[i], GPIO_CFG_ENABLE);
-			if (ret < 0)
-				HS_LOG("%s config error gpio_idx(%d)",__func__, i);
-		}
+		if (gpio_tlmm_config(hs_onewire_gpio[i], GPIO_CFG_ENABLE) < 0)
+			HS_LOG("%s config error gpio_idx(%d)",__func__, i);
 }
 
 
@@ -2081,22 +2068,9 @@ static void uart_tx_gpo(int mode)
 		GPIO_CFG(htc_headset_mgr_data.tx_gpio, htc_headset_mgr_data.wire_alt,
 				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
 	};
-
-	uint32_t headset_1wire_gpio_rx_dn[] = {
-		GPIO_CFG(htc_headset_mgr_data.rx_gpio, 0, GPIO_CFG_INPUT,
-				GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-		GPIO_CFG(htc_headset_mgr_data.tx_gpio, 0, GPIO_CFG_OUTPUT,
-				GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-		GPIO_CFG(htc_headset_mgr_data.rx_gpio, htc_headset_mgr_data.wire_alt,
-				GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-		GPIO_CFG(htc_headset_mgr_data.tx_gpio, htc_headset_mgr_data.wire_alt,
-				GPIO_CFG_OUTPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA),
-	};
 	HS_LOG("(%s) %d\n", __func__, mode);
-	if(htc_headset_mgr_data.rx_gpio_pulldn)
-		gpio_tlmm_config(headset_1wire_gpio_rx_dn[mode], GPIO_CFG_ENABLE);
-	else
-		gpio_tlmm_config(headset_1wire_gpio[mode], GPIO_CFG_ENABLE);
+
+	gpio_tlmm_config(headset_1wire_gpio[mode], GPIO_CFG_ENABLE);
 
 	if(mode == 1)
 		gpio_set_value(htc_headset_mgr_data.tx_gpio, 0);
@@ -2149,20 +2123,12 @@ static int headset_mgr_parser_dt(struct htc_hs_mgr_data *mgr)
 	HS_LOG("DT:tx[%d],rx[%d],alt[%d],bias[%d],oe[%d]",gpio[0], gpio[1],
 		htc_headset_mgr_data.wire_alt, gpio[3], gpio[2]);
 
-	ret = of_property_read_u32(dt, "mgr,rx_gpio_pulldn", (u32*)&htc_headset_mgr_data.rx_gpio_pulldn);
-	if (ret < 0) {
-		HS_LOG("mgr,rx_gpio_pulldn parser none, ret=%d", ret);
-		htc_headset_mgr_data.rx_gpio_pulldn = 0;
-	}
-    HS_LOG("DT:Headset rx_gpio_pulldn=%d",htc_headset_mgr_data.rx_gpio_pulldn);
-
 	ret = of_property_read_u32(dt, "mgr,hs_typenum", (u32*)&htc_headset_mgr_data.headset_config_num);
-	if (ret < 0) {
+	if (ret < 0) {		
 		HS_LOG("mgr,hs_typenum parser err, ret=%d", ret);
 		goto parser_fail;
 	}
-    HS_LOG("DT:Headset type number = %d",htc_headset_mgr_data.headset_config_num);
-
+        HS_LOG("DT:Headset type number = %d",htc_headset_mgr_data.headset_config_num);
 	hs_list = kzalloc(htc_headset_mgr_data.headset_config_num * sizeof(u32) * 3, GFP_KERNEL);
 	hs_typelist = kzalloc(htc_headset_mgr_data.headset_config_num * sizeof(struct headset_adc_config), GFP_KERNEL);
 	if (hs_list == NULL) {
@@ -2229,17 +2195,13 @@ static int htc_headset_mgr_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dtinfo = kzalloc(sizeof(*dtinfo), GFP_KERNEL);
-	if (!dtinfo) {
-		kfree(hi);
+	if (!dtinfo)
 		return -ENOMEM;
-	}
 
 	if (pdev->dev.of_node) {
 		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 		if (pdata == NULL) {
 			HS_LOG("platform_data alloc memry fail");
-			kfree(hi);
-			kfree(dtinfo);
 			return -ENOMEM;
 		}
 
@@ -2381,8 +2343,6 @@ static int htc_headset_mgr_probe(struct platform_device *pdev)
 #endif
 	HS_LOG("--------------------");
 
-	kfree(dtinfo);
-	kfree(pdata);
 	return 0;
 
 #ifdef HTC_HEADSET_CONFIG_MSM_RPC
@@ -2410,8 +2370,6 @@ err_usb_audio_switch_dev_register:
 err_h2w_switch_dev_register:
 	mutex_destroy(&hi->mutex_lock);
 	wake_lock_destroy(&hi->hs_wake_lock);
-	kfree(dtinfo);
-	kfree(pdata);
 	kfree(hi);
 
 	HS_ERR("Failed to register %s driver", DRIVER_NAME);

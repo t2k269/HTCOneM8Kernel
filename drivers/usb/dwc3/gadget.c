@@ -575,6 +575,7 @@ static int __dwc3_gadget_ep_disable(struct dwc3_ep *dep)
 	u32			reg;
 
 	dwc3_remove_requests(dwc, dep);
+
 	reg = dwc3_readl(dwc->regs, DWC3_DALEPENA);
 	reg &= ~DWC3_DALEPENA_EP(dep->number);
 	dwc3_writel(dwc->regs, DWC3_DALEPENA, reg);
@@ -666,15 +667,8 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 	dev_vdbg(dwc->dev, "Enabling %s\n", dep->name);
 
 	spin_lock_irqsave(&dwc->lock, flags);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "ENABLE", dep->number);
-#endif
 	ret = __dwc3_gadget_ep_enable(dep, desc, ep->comp_desc, false);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "ENAEND", dep->number);
-#else
 	dbg_event(dep->number, "ENABLE", ret);
-#endif
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -706,16 +700,8 @@ static int dwc3_gadget_ep_disable(struct usb_ep *ep)
 			(dep->number & 1) ? "in" : "out");
 
 	spin_lock_irqsave(&dwc->lock, flags);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "DISABLE", dep->number);
-#endif
 	ret = __dwc3_gadget_ep_disable(dep);
-
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "DIS END", dep->number);
-#else
 	dbg_event(dep->number, "DISABLE", ret);
-#endif
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -940,11 +926,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	}
 	if (!req) {
 		dep->flags |= DWC3_EP_PENDING_REQUEST;
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-		dbg_event(0xFF, "NO REQ", dep->number);
-#else
 		dbg_event(dep->number, "NO REQ", 0);
-#endif
 		return 0;
 	}
 
@@ -961,9 +943,7 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	ret = dwc3_send_gadget_ep_cmd(dwc, dep->number, cmd, &params);
 	if (ret < 0) {
 		dev_dbg(dwc->dev, "failed to send STARTTRANSFER command\n");
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-		pr_info("failed to send STARTTRANSFER command\n");
-#endif
+
 		if ((ret == -EAGAIN) && start_new &&
 				usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
 			if (!dep->resource_index) {
@@ -1443,12 +1423,7 @@ static int dwc3_gadget_run_stop(struct dwc3 *dwc, int is_on)
 			dwc->gadget_driver
 			? dwc->gadget_driver->function : "no-function",
 			is_on ? "connect" : "disconnect");
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	pr_info("gadget %s data soft-%s\n",
-			dwc->gadget_driver
-			? dwc->gadget_driver->function : "no-functio",
-			is_on ? "connect" : "disconnect");
-#endif
+
 	return 0;
 }
 
@@ -1488,13 +1463,9 @@ static int dwc3_gadget_pullup(struct usb_gadget *g, int is_on)
 
 		return 0;
 	}
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "RUNSTOP",0);
-#endif
+
 	ret = dwc3_gadget_run_stop(dwc, is_on);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "STOPEND",ret);
-#endif
+
 	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return ret;
@@ -1534,7 +1505,7 @@ static int dwc3_gadget_vbus_session(struct usb_gadget *_gadget, int is_active)
 		dev_dbg(dwc->dev, "calling disconnect from %s\n", __func__);
 		dwc3_gadget_disconnect_interrupt(dwc);
 	}
-	printk("%s: disconnect_interrupt finish!\n", __func__);
+
 	spin_unlock_irqrestore(&dwc->lock, flags);
 	return ret;
 }
@@ -1850,10 +1821,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 				(trb->ctrl & DWC3_TRB_CTRL_IOC))
 			break;
 	} while (1);
-	if (!dep->endpoint.desc) {
-		pr_info("endpoint.desc is null\n");
-		return 1;
-	}
+
 	if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
 			list_empty(&dep->req_queued)) {
 		if (list_empty(&dep->request_list))
@@ -2087,9 +2055,6 @@ static void dwc3_gadget_disconnect_interrupt(struct dwc3 *dwc)
 
 	dbg_event(0xFF, "DISCONNECT", 0);
 	dwc3_disconnect_gadget(dwc, 0);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "DISCONNEND", 0);
-#endif
 	dwc->start_config_issued = false;
 
 	dwc->gadget.speed = USB_SPEED_UNKNOWN;
@@ -2136,11 +2101,7 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 			dwc3_gadget_disconnect_interrupt(dwc);
 	}
 
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "RST STR", 0);
-#else
 	dbg_event(0xFF, "BUS RST", 0);
-#endif
 	
 	dwc->dev_state = DWC3_DEFAULT_STATE;
 
@@ -2174,9 +2135,6 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 	reg = dwc3_readl(dwc->regs, DWC3_DCFG);
 	reg &= ~(DWC3_DCFG_DEVADDR_MASK);
 	dwc3_writel(dwc->regs, DWC3_DCFG, reg);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF, "RST END", 0);
-#endif
 }
 
 static void dwc3_update_ram_clk_sel(struct dwc3 *dwc, u32 speed)
@@ -2502,9 +2460,7 @@ static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 		(void *)(dwc->num_event_buffers));
 #endif
 	spin_lock(&dwc->lock);
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF,"DWC3STR",0);
-#endif
+
 	for (i = 0; i < dwc->num_event_buffers; i++) {
 		irqreturn_t status;
 
@@ -2512,9 +2468,7 @@ static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 		if (status == IRQ_HANDLED)
 			ret = status;
 	}
-#ifdef CONFIG_HTC_USB_DEBUG_FLAG
-	dbg_event(0xFF,"DWC3END",0);
-#endif
+
 	spin_unlock(&dwc->lock);
 
 	return ret;

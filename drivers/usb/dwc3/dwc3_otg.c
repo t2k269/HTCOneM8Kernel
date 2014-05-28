@@ -817,7 +817,6 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 			dev_dbg(phy->dev, "id\n");
 			dwc3_otg_start_host(&dotg->otg, 0);
 			phy->state = OTG_STATE_B_IDLE;
-			clear_bit(B_SESS_VLD, &dotg->inputs);
 			dotg->vbus_retry_count = 0;
 			work = 1;
 		}
@@ -878,18 +877,16 @@ static void ac_detect_expired_work(struct work_struct *w)
 {
 	struct delayed_work *dw = container_of(w, struct delayed_work, work);
 	struct dwc3_otg *dotg = container_of(dw, struct dwc3_otg, ac_detect_work);
-	u32 line_state;
 
-	line_state = htc_dwc3_get_line_state(dotg->dwc);
+
 	USBH_INFO("%s: count = %d, connect_type = %d\n", __func__,
 			dotg->ac_detect_count, dotg->connect_type);
 
 	if (dotg->connect_type == CONNECT_TYPE_USB || dotg->ac_detect_count >= 10)
 		return;
 
-	printk("[USB] %s: line state = %x\n",__func__,(line_state & (3 << 8)));
 	
-	if (line_state != (3 << 8)) {
+	if (htc_dwc3_get_line_state(dotg->dwc) != (3 << 8)) {
 #ifdef CONFIG_CABLE_DETECT_ACCESSORY
 		if (cable_get_accessory_type() == DOCK_STATE_CAR
 			||cable_get_accessory_type() == DOCK_STATE_AUDIO_DOCK) {

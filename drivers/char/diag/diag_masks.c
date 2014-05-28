@@ -655,14 +655,19 @@ int diag_process_apps_masks(unsigned char *buf, int len)
 				*(int *)(driver->apps_rsp_buf+12+i) = *(buf+i);
 
 			for (i = 0; i < NUM_SMD_CONTROL_CHANNELS; i++) {
+#ifdef CONFIG_DIAG_RB_DUMP
 				if ((i == MODEM_DATA || i == WCNSS_DATA) && (diag_rb_enable & 1)){
 					printk("diag(%d): Filter Modem and WCNSS mask\n", __LINE__);
 					continue;
 				}
+#endif
 				if (driver->smd_cntl[i].ch)
 					diag_send_log_mask_update(
 						driver->smd_cntl[i].ch,
 						*(int *)buf);
+#ifdef CONFIG_DIAG_RB_DUMP
+				
+#endif
 			}
 			encode_rsp_and_send(12 + payload_length - 1);
 			return 0;
@@ -701,14 +706,19 @@ int diag_process_apps_masks(unsigned char *buf, int len)
 			*(int *)(driver->apps_rsp_buf + 4) = 0x0;
 			*(int *)(driver->apps_rsp_buf + 8) = 0x0; 
 			for (i = 0; i < NUM_SMD_CONTROL_CHANNELS; i++) {
+#ifdef CONFIG_DIAG_RB_DUMP
 				if ((i == MODEM_DATA || i == WCNSS_DATA) && (diag_rb_enable & 1)){
 					printk("diag(%d): Filter Modem and WCNSS mask\n", __LINE__);
 					continue;
 				}
+#endif
 				if (driver->smd_cntl[i].ch)
 					diag_send_log_mask_update(
 						driver->smd_cntl[i].ch,
 						ALL_EQUIP_ID);
+#ifdef CONFIG_DIAG_RB_DUMP
+				
+#endif
 			}
 			encode_rsp_and_send(11);
 			return 0;
@@ -775,15 +785,20 @@ int diag_process_apps_masks(unsigned char *buf, int len)
 				*(driver->apps_rsp_buf + i) = *(buf+i);
 			*(driver->apps_rsp_buf + 6) = 0x1;
 			for (i = 0; i < NUM_SMD_CONTROL_CHANNELS; i++) {
+#ifdef CONFIG_DIAG_RB_DUMP
 				if ((i == MODEM_DATA || i == WCNSS_DATA) && (diag_rb_enable & 1)){
 					printk("diag(%d): Filter Modem and WCNSS mask\n", __LINE__);
 					continue;
 				}
+#endif
 				if (driver->smd_cntl[i].ch)
 					diag_send_msg_mask_update(
 						driver->smd_cntl[i].ch,
 						ssid_first, ssid_last,
 						driver->smd_cntl[i].peripheral);
+#ifdef CONFIG_DIAG_RB_DUMP
+				
+#endif
 			}
 			encode_rsp_and_send(8 + ssid_range - 1);
 			return 0;
@@ -803,15 +818,20 @@ int diag_process_apps_masks(unsigned char *buf, int len)
 			*(int *)(driver->apps_rsp_buf + 4) = rt_mask;
 			
 			for (i = 0; i < NUM_SMD_CONTROL_CHANNELS; i++) {
+#ifdef CONFIG_DIAG_RB_DUMP
 				if ((i == MODEM_DATA || i == WCNSS_DATA) && (diag_rb_enable & 1)) {
 					printk("diag(%d): Filter Modem and WCNSS mask\n", __LINE__);
 					continue;
 				}
+#endif
 				if (driver->smd_cntl[i].ch)
 					diag_send_msg_mask_update(
 						driver->smd_cntl[i].ch,
 						ALL_SSID, ALL_SSID,
 						driver->smd_cntl[i].peripheral);
+#ifdef CONFIG_DIAG_RB_DUMP
+				
+#endif
 			}
 			encode_rsp_and_send(7);
 			return 0;
@@ -832,14 +852,19 @@ int diag_process_apps_masks(unsigned char *buf, int len)
 			memcpy(driver->apps_rsp_buf+6, driver->event_masks,
 				EVENT_LAST_ID/8+1);
 			for (i = 0; i < NUM_SMD_CONTROL_CHANNELS; i++) {
+#ifdef CONFIG_DIAG_RB_DUMP
 				if ((i == MODEM_DATA || i == WCNSS_DATA) && (diag_rb_enable & 1)){
 					printk("diag(%d): Filter Modem and WCNSS mask\n", __LINE__);
 					continue;
 				}
+#endif
 				if (driver->smd_cntl[i].ch)
 					diag_send_event_mask_update(
 						driver->smd_cntl[i].ch,
 						diag_event_num_bytes);
+#ifdef CONFIG_DIAG_RB_DUMP
+				
+#endif
 			}
 			encode_rsp_and_send(6 + EVENT_LAST_ID/8);
 			return 0;
@@ -854,14 +879,19 @@ int diag_process_apps_masks(unsigned char *buf, int len)
 			driver->apps_rsp_buf[1] = 0x0;
 			driver->apps_rsp_buf[2] = 0x0;
 			for (i = 0; i < NUM_SMD_CONTROL_CHANNELS; i++) {
+#ifdef CONFIG_DIAG_RB_DUMP
 				if ((i == MODEM_DATA || i == WCNSS_DATA) && (diag_rb_enable & 1)) {
 					printk("diag(%d): Filter Modem and WCNSS mask\n", __LINE__);
 					continue;
 				}
+#endif
 				if (driver->smd_cntl[i].ch)
 					diag_send_event_mask_update(
 						driver->smd_cntl[i].ch,
 						diag_event_num_bytes);
+#ifdef CONFIG_DIAG_RB_DUMP
+				
+#endif
 			}
 			encode_rsp_and_send(2);
 			return 0;

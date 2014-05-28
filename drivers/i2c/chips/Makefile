@@ -31,7 +31,6 @@ obj-$(CONFIG_BOSCH_BMA250)      += bma250_bosch.o
 obj-$(CONFIG_INPUT_YAS_MAGNETOMETER) += yas53x_kernel.o
 obj-$(CONFIG_VP_A1028)          += a1028.o
 obj-$(CONFIG_INPUT_CWSTM32)    += CwMcuSensor.o
-obj-$(CONFIG_LIGHTSENSOR_EPL88051) += epl88051.o
 ifeq ($(CONFIG_I2C_DEBUG_CHIP),y)
 EXTRA_CFLAGS += -DDEBUG
 endif

@@ -356,6 +356,77 @@ int __init htc_cpu_usage_register(void)
 }
 #endif
 
+static int __maybe_unused m8wl_usb_product_id_match_array[] = {
+		0x0ff8, 0x0e65, 
+		0x0fa4, 0x0eab, 
+		0x0fa5, 0x0eac, 
+		0x0f91, 0x0ec3, 
+		0x0f64, 0x07ca, 
+		0x0f63, 0x07cb, 
+		0x0f29, 0x07c8, 
+		0x0f2a, 0x07c9, 
+		0x0f9a, 0x0eae, 
+		0x0f99, 0x0ead, 
+		-1,
+};
+
+static int __maybe_unused m8wl_usb_product_id_rndis[] = {
+	0x0762, 
+	0x0768, 
+	0x0763, 
+	0x0769, 
+	0x07be, 
+	0x07c2, 
+	0x07bf, 
+	0x07c3, 
+};
+static int __maybe_unused m8wl_usb_product_id_match(int product_id, int intrsharing)
+{
+	int *pid_array = m8wl_usb_product_id_match_array;
+	int *rndis_array = m8wl_usb_product_id_rndis;
+	int category = 0;
+
+	if (!pid_array)
+		return product_id;
+
+	
+	if (board_mfg_mode())
+		return product_id;
+
+	while (pid_array[0] >= 0) {
+		if (product_id == pid_array[0])
+			return pid_array[1];
+		pid_array += 2;
+	}
+	printk("%s(%d):product_id=%d, intrsharing=%d\n", __func__, __LINE__, product_id, intrsharing);
+
+	switch (product_id) {
+		case 0x0f8c: 
+			category = 0;
+			break;
+		case 0x0f8d: 
+			category = 1;
+			break;
+		case 0x0f5f: 
+			category = 2;
+			break;
+		case 0x0f60: 
+			category = 3;
+			break;
+		default:
+			category = -1;
+			break;
+	}
+	if (category != -1) {
+		if (intrsharing)
+			return rndis_array[category * 2];
+		else
+			return rndis_array[category * 2 + 1];
+	}
+	return product_id;
+}
+
+
 static struct android_usb_platform_data android_usb_pdata = {
 	.vendor_id      = 0x0bb4,
 	.product_id     = 0x060e, 
@@ -366,6 +437,9 @@ static struct android_usb_platform_data android_usb_pdata = {
 	.usb_rmnet_interface = "smd,bam",
 	.usb_diag_interface = "diag",
 	.fserial_init_string = "smd:modem,tty,tty:autobot,tty:serial,tty:autobot,tty:acm",
+#ifdef CONFIG_MACH_M8_WL
+	.match = m8wl_usb_product_id_match,
+#endif
 	.nluns = 1,
 	.cdrom_lun = 0x1,
 	.vzw_unmount_cdrom = 0,
@@ -384,17 +458,68 @@ static void htc_8974_add_usb_devices(void)
 	android_usb_pdata.serial_number = board_serialno();
 
 	if (board_mfg_mode() == 0) {
+#ifdef CONFIG_MACH_M8_WHL
+		android_usb_pdata.nluns = 2;
+		android_usb_pdata.cdrom_lun = 0x2;
+#else
 		android_usb_pdata.nluns = 1;
 		android_usb_pdata.cdrom_lun = 0x1;
+#endif
+
 	}
 #ifdef CONFIG_MACH_M8
 	android_usb_pdata.product_id	= 0x061A;
+#elif defined(CONFIG_MACH_M8_WL)
+	android_usb_pdata.product_id	= 0x0616;
+	android_usb_pdata.vzw_unmount_cdrom = 1;
+#elif defined(CONFIG_MACH_M8_UHL)
+	android_usb_pdata.product_id	= 0x063A;
 #else
 	
 #endif
 	platform_device_register(&android_usb_device);
 }
+#if (defined(CONFIG_MACH_GLU_U) || defined(CONFIG_MACH_GLU_WLJ))
+static ssize_t syn_vkeys_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf,
+	__stringify(EV_KEY) ":" __stringify(KEY_BACK) ":241:2007:158:165"
+	":" __stringify(EV_KEY) ":" __stringify(KEY_HOME) ":847:2007:158:165"
+	"\n");
+}
 
+static struct kobj_attribute syn_vkeys_attr = {
+	.attr = {
+		.name = "virtualkeys.synaptics-rmi-touchscreen",
+		.mode = S_IRUGO,
+	},
+	.show = &syn_vkeys_show,
+};
+
+static struct attribute *syn_properties_attrs[] = {
+	&syn_vkeys_attr.attr,
+	NULL
+};
+
+static struct attribute_group syn_properties_attr_group = {
+	.attrs = syn_properties_attrs,
+};
+
+static void syn_init_vkeys_8974(void)
+{
+	int rc = 0;
+	static struct kobject *syn_properties_kobj;
+
+	pr_info("[TP] init virtual key");
+	syn_properties_kobj = kobject_create_and_add("board_properties", NULL);
+	if (syn_properties_kobj)
+		rc = sysfs_create_group(syn_properties_kobj, &syn_properties_attr_group);
+	if (!syn_properties_kobj || rc)
+		pr_err("%s: failed to create board_properties\n", __func__);
+	return;
+}
+#endif
 static struct memtype_reserve htc_8974_reserve_table[] __initdata = {
 	[MEMTYPE_SMI] = {
 	},
@@ -448,7 +573,7 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.critical_alarm_vol_cols = sizeof(critical_alarm_voltage_mv) / sizeof(int),
 	.overload_vol_thr_mv = 4000,
 	.overload_curr_thr_ma = 0,
-	.smooth_chg_full_delay_min = 1,
+	.smooth_chg_full_delay_min = 3,
 	.decreased_batt_level_check = 1,
 	.force_shutdown_batt_vol = 3000,
 	
@@ -492,8 +617,11 @@ static struct htc_battery_platform_data htc_battery_pdev_data = {
 	.igauge.is_battery_temp_fault = pm8941_is_batt_temperature_fault,
 	.igauge.is_battery_full = pm8941_is_batt_full,
 	.igauge.get_attr_text = pm8941_gauge_get_attr_text,
+	.igauge.register_lower_voltage_alarm_notifier =
+						pm8xxx_batt_lower_alarm_register_notifier,
+	.igauge.enable_lower_voltage_alarm = pm8xxx_batt_lower_alarm_enable,
 	.igauge.set_lower_voltage_alarm_threshold =
-						pm8941_batt_lower_alarm_threshold_set,
+						pm8xxx_batt_lower_alarm_threshold_set,
 	
 #ifdef CONFIG_HTC_PNPMGR
 	.notify_pnpmgr_charging_enabled = pnpmgr_battery_charging_enabled,
@@ -541,6 +669,9 @@ void __init htc_8974_add_drivers(void)
 	htc_batt_cell_register();
 	msm8974_add_batt_devices();
 #endif 
+#if (defined(CONFIG_MACH_GLU_U) || defined(CONFIG_MACH_GLU_WLJ))
+	syn_init_vkeys_8974();
+#endif
 	htc_8974_cable_detect_register();
 	htc_8974_add_usb_devices();
 	htc_8974_dsi_panel_power_register();
@@ -651,10 +782,7 @@ static const char *htc_8974_dt_match[] __initconst = {
 	NULL
 };
 
-
-#define MACH_NAME "Qualcomm MSM8974 " CONFIG_MACH_NAME
-
-DT_MACHINE_START(htc_8974_DT, MACH_NAME)
+DT_MACHINE_START(htc_8974_DT, "UNKNOWN")
 	.map_io = htc_8974_map_io,
 	.init_early = htc_8974_init_early,
 	.init_irq = msm_dt_init_irq,

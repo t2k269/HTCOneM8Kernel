@@ -957,10 +957,10 @@ static int htc_vreg_ldo_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vreg
 {
 	int ret, i;
 	uint8_t range_sel, voltage_sel;
-	int range_sel_flag, range_id = 0;
+	int range_id = 0;
 
 	
-	range_sel_flag = -1;
+	range_sel = -1;
 
 	
 	if (vreg->type == VREG_TYPE_PLDO) {
@@ -969,7 +969,6 @@ static int htc_vreg_ldo_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vreg
 				&& ( val < pldo_ranges[i].max_uV)) {
 				range_sel = pldo_ranges[i].range_sel;
 				range_id = i;
-				range_sel_flag = 1;
 				break;
 			}
 		}
@@ -979,7 +978,6 @@ static int htc_vreg_ldo_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vreg
 				&& ( val < nldo1_ranges[i].max_uV)) {
 				range_sel = nldo1_ranges[i].range_sel;
 				range_id = i;
-				range_sel_flag = 1;
 				break;
 			}
 		}
@@ -988,7 +986,7 @@ static int htc_vreg_ldo_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vreg
 	}
 
 	
-	if (range_sel_flag<0) {
+	if (range_sel<0) {
 		pr_err("Can't set voltage due to not range can be seleted\n");
 		return -1;
 	}
@@ -1029,10 +1027,10 @@ static int htc_vreg_smps_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vre
 {
 	int ret, i;
 	uint8_t range_sel, voltage_sel;
-	int range_sel_flag, range_id = 0;
+	int range_id = 0;
 
 	
-	range_sel_flag = -1;
+	range_sel = -1;
 
 	if (vreg->type == VREG_TYPE_HF_SMPS) {
 		for (i = 0; i < ARRAY_SIZE(smps_ranges); i++) {
@@ -1040,12 +1038,10 @@ static int htc_vreg_smps_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vre
 				&& ( val < smps_ranges[i].max_uV)) {
 				range_sel = smps_ranges[i].range_sel;
 				range_id = i;
-				range_sel_flag = 1;
 				break;
 			}
 		}
 	} else if (vreg->type == VREG_TYPE_FT_SMPS) {
-#if 0
 		for (i = 0; i < ARRAY_SIZE(ftsmps_ranges); i++) {
 			if ((ftsmps_ranges[i].min_uV < val)
 				&& ( val < ftsmps_ranges[i].max_uV)) {
@@ -1054,28 +1050,12 @@ static int htc_vreg_smps_set_voltage(struct _qpnp_vregs *qpnp_vregs, struct _vre
 				break;
 			}
 		}
-#else
-		
-		ret = spmi_read_data(qpnp_vregs->ctrl, &range_sel, vreg->base_addr + qpnp_vregs->range_ctl_offset, 1);
-		if (ret) {
-			pr_err("SPMI read failed, err = %zu\n", ret);
-			return ret;
-		}
-		
-		for (i = 0; i < ARRAY_SIZE(ftsmps_ranges); i++) {
-			if (ftsmps_ranges[i].range_sel == range_sel) {
-				range_id = i;
-				range_sel_flag = 1;
-				break;
-			}
-		}
-#endif
 	} else {
 		
 	}
 
 	
-	if (range_sel_flag<0) {
+	if (range_sel<0) {
 		pr_err("Can't set voltage due to not range can be seleted\n");
 		return -1;
 	}

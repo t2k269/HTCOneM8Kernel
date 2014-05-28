@@ -186,6 +186,7 @@
 	};
 
 	gpio@d400 { /* GPIO 21 */
+		qcom,vin-sel = <2>;
 	};
 
 	gpio@d500 { /* GPIO 22 -[CAM] CAM_VCM2V85_EN- */
@@ -264,6 +265,7 @@
 	};
 
 	gpio@de00 { /* GPIO 31 */
+		qcom,vin-sel = <2>;	/* QPNP_PIN_VIN2 */
 	};
 
 	gpio@df00 { /* GPIO 32 */
@@ -274,6 +276,7 @@
 
 	gpio@e000 { /* GPIO 33 */
 		qcom,mode = <1>;        /* QPNP_PIN_MODE_DIG_OUT */
+		qcom,vin-sel = <2>;	/* QPNP_PIN_VIN2 */
 		qcom,pull = <4>;	/* QPNP_PIN_PULL_DN */
 		qcom,master-en = <1>;
 	};

@@ -318,7 +318,6 @@ struct htc_headset_mgr_platform_data {
 	uint32_t oe_gpio:16;
 	uint32_t bias_gpio:16;
 	uint8_t  wire_alt;
-	uint8_t  rx_gpio_pulldn;
 #endif
 };
 

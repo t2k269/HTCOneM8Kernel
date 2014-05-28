@@ -188,7 +188,6 @@ struct mmc_host {
 #define MMC_VDD_35_36		0x00800000	
 
 	unsigned long		caps;		
-	unsigned long		caps_uhs;	
 
 #define MMC_CAP_4_BIT_DATA	(1 << 0)	
 #define MMC_CAP_MMC_HIGHSPEED	(1 << 1)	
@@ -431,7 +430,7 @@ static inline void mmc_set_bus_resume_policy(struct mmc_host *host, int manual)
 	if (manual)
 		host->bus_resume_flags |= MMC_BUSRESUME_MANUAL_RESUME;
 	else
-		host->bus_resume_flags &= ~host->bus_resume_flags;
+		host->bus_resume_flags &= ~MMC_BUSRESUME_MANUAL_RESUME;
 }
 
 extern int mmc_resume_bus(struct mmc_host *host);
@@ -463,7 +462,6 @@ static inline void mmc_signal_sdio_irq(struct mmc_host *host)
 struct regulator;
 
 int mmc_is_sd_host(struct mmc_host *mmc);
-int mmc_is_mmc_host(struct mmc_host *mmc);
 #ifdef CONFIG_REGULATOR
 int mmc_regulator_get_ocrmask(struct regulator *supply);
 int mmc_regulator_set_ocr(struct mmc_host *mmc,

@@ -1852,7 +1852,8 @@ config ENABLE_DMM
 
 choice
 	prompt "Virtual Memory Reclaim"
-	default ENABLE_VMALLOC_SAVING
+	default ENABLE_VMALLOC_SAVING if ARCH_MSM8974
+	default NO_VM_RECLAIM if ARCH_MSM8974=n
 	help
 	  Select the method of reclaiming virtual memory
 

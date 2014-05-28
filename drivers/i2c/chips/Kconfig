@@ -239,10 +239,5 @@ config SYNC_TOUCH_STATUS
 	default n
 	help
 	  Sync touch i2c switch status to sensor hub
-config LIGHTSENSOR_EPL88051
-	bool "enable EPL88051"
-	depends on I2C
-	help
-	  Say Y here to enable the EPL88051.
 
 endmenu

@@ -26,7 +26,6 @@ obj-$(CONFIG_GC0339) += gc0339.o
 obj-$(CONFIG_OV4688) += ov4688.o
 obj-$(CONFIG_VD6869) += vd6869.o
 obj-$(CONFIG_AR1820) += ar1820.o
-obj-$(CONFIG_IMX214) += imx214.o
 obj-$(CONFIG_AR0260) += ar0260.o
 obj-$(CONFIG_S5K5E_ONELANE) += s5k5e_onelane.o
 obj-$(CONFIG_s5k5e) += s5k5e.o

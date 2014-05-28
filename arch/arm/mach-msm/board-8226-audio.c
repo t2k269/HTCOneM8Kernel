@@ -493,7 +493,9 @@ static void msm8226_ext_spk_power_amp_off(u32 spk)
 		pr_debug("%s Disable left and right speakers case spk = 0x%08x",
 			__func__, spk);
 
-		if(!(msm8226_ext_spk_pamp & spk))
+		msm8226_ext_spk_pamp &= ~spk;
+
+		if(!msm8226_ext_spk_pamp)
 			return;
 
 		mutex_lock(&htc_amp_mutex);
@@ -1345,6 +1347,9 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 		err = -ENOMEM;
 		goto out;
 	}
+
+	
+	gpio_tlmm_config(GPIO_CFG(GPIO_WCD_INTR2, 0,GPIO_CFG_OUTPUT,GPIO_CFG_PULL_DOWN,GPIO_CFG_2MA),GPIO_CFG_ENABLE);
 
 	adsp_state_notifier =
 		subsys_notif_register_notifier("adsp",
@@ -2809,7 +2814,7 @@ static __devinit int msm8226_asoc_machine_probe(struct platform_device *pdev)
 	if (!pdata) {
 		dev_err(&pdev->dev, "Can't allocate msm8226_asoc_mach_data\n");
 		ret = -ENOMEM;
-		goto err1;
+		goto err;
 	}
 
 	card = populate_snd_card_dailinks(&pdev->dev);

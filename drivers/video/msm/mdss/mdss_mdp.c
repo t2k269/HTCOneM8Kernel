@@ -57,7 +57,6 @@
 #include "mdss_mdp.h"
 #include "mdss_panel.h"
 #include "mdss_debug.h"
-#include "xlog.h"
 
 struct mdss_data_type *mdss_res;
 
@@ -117,6 +116,8 @@ static int mdss_mdp_fbmem_alloc(struct msm_fb_data_type *mfd)
 		return -ENOMEM;
 
 	virt = ioremap(phys, size);
+	memset(virt, 0, size);
+
 	msm_iommu_map_contig_buffer(phys, dom, 0, size, SZ_4K, 0,
 					    &mfd->iova);
 
@@ -733,7 +734,6 @@ void mdss_mdp_clk_ctrl(int enable, int isr)
 		}
 	}
 
-	XLOG(__func__, mdp_clk_cnt, changed, enable, current->pid, 0, 0);
 	pr_debug("%s: clk_cnt=%d changed=%d enable=%d\n",
 			__func__, mdp_clk_cnt, changed, enable);
 
@@ -836,8 +836,6 @@ int mdss_iommu_attach(struct mdss_data_type *mdata)
 	struct mdss_iommu_map_type *iomap;
 	int i;
 
-	XLOG(__func__, mdata->iommu_attached, 0, 0, 0, 0, 0);
-
 	if (mdata->iommu_attached) {
 		pr_debug("mdp iommu already attached\n");
 		return 0;
@@ -865,8 +863,6 @@ int mdss_iommu_dettach(struct mdss_data_type *mdata)
 	struct iommu_domain *domain;
 	struct mdss_iommu_map_type *iomap;
 	int i;
-
-	XLOG(__func__, mdata->iommu_attached, 0, 0, 0, 0, 0);
 
 	if (!mdata->iommu_attached) {
 		pr_debug("mdp iommu already dettached\n");
@@ -1011,25 +1007,6 @@ static int mdss_mdp_debug_init(struct mdss_data_type *mdata)
 
 	return 0;
 }
-
-#ifdef CONFIG_MDSS_DUMP_MDP_UNDERRUN
-static void mdp_print_debug_bus(void)
-{
-	u32 status;
-
-	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
-	MDSS_MDP_REG_WRITE(0x398, 0x7001);
-	MDSS_MDP_REG_WRITE(0x448, 0x3f1);
-	status = MDSS_MDP_REG_READ(0x44c);
-	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
-	xlog(__func__,  status, 0, 0, 0, 0, 0xDDDDDD);
-}
-
-void mdp_debug_bus(void)
-{
-	mdp_print_debug_bus();
-}
-#endif
 
 int mdss_hw_init(struct mdss_data_type *mdata)
 {
@@ -1980,10 +1957,6 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 	rc = of_property_read_u32(pdev->dev.of_node, "qcom,mdss-rot-block-size",
 		&data);
 	mdata->rot_block_size = (!rc ? data : 128);
-
-	rc = of_property_read_u32(pdev->dev.of_node,
-		"qcom,mdss-rotator-ot-limit", &data);
-	mdata->rotator_ot_limit = (!rc ? data : 0);
 
 	mdata->has_bwc = of_property_read_bool(pdev->dev.of_node,
 					       "qcom,mdss-has-bwc");
