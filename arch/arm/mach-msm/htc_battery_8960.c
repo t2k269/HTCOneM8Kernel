@@ -432,6 +432,10 @@ int htc_charger_event_notify(enum htc_charger_event event)
 	case HTC_CHARGER_EVENT_VBUS_OUT:
 	case HTC_CHARGER_EVENT_SRC_NONE: 
 		latest_chg_src = CHARGER_BATTERY;
+		if (delayed_work_pending(&htc_batt_timer.unknown_usb_detect_work)) {
+			cancel_delayed_work_sync(&htc_batt_timer.unknown_usb_detect_work);
+			wake_unlock(&htc_batt_timer.unknown_usb_detect_lock);
+		}
 		htc_batt_schedule_batt_info_update();
 		break;
 	case HTC_CHARGER_EVENT_SRC_USB: 
@@ -1528,8 +1532,8 @@ static bool is_level_change_time_reached(unsigned long level_change_time,
 
 	level_since_last_update_ms =
 		(cur_jiffies - pre_jiffies) * MSEC_PER_SEC / HZ;
-	BATT_LOG("%s: total_time since last batt level update = %lu ms.",
-			__func__, level_since_last_update_ms);
+	//BATT_LOG("%s: total_time since last batt level update = %lu ms.",
+	//		__func__, level_since_last_update_ms);
 
 	if (level_since_last_update_ms < level_change_time) {
 		
@@ -1636,7 +1640,9 @@ static void batt_level_adjust(unsigned long time_since_last_update_ms)
 						htc_batt_info.rep.batt_current);
 		} else {
 			
-			if (prev_level < 20)
+			
+			if ((htc_batt_info.rep.level_raw < 30) ||
+					(prev_level - prev_raw_level > 10))
 				allow_drop_one_percent_flag = true;
 
 			
@@ -2047,7 +2053,7 @@ static void batt_worker(struct work_struct *work)
 										htc_batt_info.rep.charging_source;
 
 		
-		pr_info("[BATT] prev_chg_src=%d, prev_chg_en=%d,"
+		/*pr_info("[BATT] prev_chg_src=%d, prev_chg_en=%d,"
 				" chg_dis_reason/control/active=0x%x/0x%x/0x%x,"
 				" chg_limit_reason=0x%x,"
 				" pwrsrc_dis_reason=0x%x, prev_pwrsrc_enabled=%d,"
@@ -2060,7 +2066,7 @@ static void batt_worker(struct work_struct *work)
 					chg_limit_reason,
 					pwrsrc_dis_reason, prev_pwrsrc_enabled,
 					context_state,
-					htc_batt_info.htc_extension);
+					htc_batt_info.htc_extension);*/
 		if (charging_enabled != prev_charging_enabled ||
 				prev_chg_src != htc_batt_info.rep.charging_source ||
 				first ||
@@ -2144,7 +2150,7 @@ static void batt_worker(struct work_struct *work)
 	prev_pwrsrc_enabled = pwrsrc_enabled;
 
 	wake_unlock(&htc_batt_timer.battery_lock);
-	pr_info("[BATT] %s: done\n", __func__);
+	//pr_info("[BATT] %s: done\n", __func__);
 	return;
 }
 
@@ -2351,7 +2357,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		switch (*blank) {
 			case FB_BLANK_UNBLANK:
 				htc_batt_info.state &= ~STATE_EARLY_SUSPEND;
-				BATT_LOG("%s-> display is On", __func__);
+				//BATT_LOG("%s-> display is On", __func__);
 				htc_batt_schedule_batt_info_update();
 				break;
 			case FB_BLANK_POWERDOWN:
@@ -2359,7 +2365,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 			case FB_BLANK_VSYNC_SUSPEND:
 			case FB_BLANK_NORMAL:
 				htc_batt_info.state |= STATE_EARLY_SUSPEND;
-				BATT_LOG("%s-> display is Off", __func__);
+				//BATT_LOG("%s-> display is Off", __func__);
 				htc_batt_schedule_batt_info_update();
 				break;
 		}
