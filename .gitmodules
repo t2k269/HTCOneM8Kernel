@@ -9,3 +9,6 @@
 [submodule "prebuilts/gcc/linux-x86/arm/arm-eabi-4.6"]
 	path = prebuilts/gcc/linux-x86/arm/arm-eabi-4.6
 	url = https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6
+[submodule "linaro/gcc/linux-x86/arm"]
+	path = linaro/gcc/linux-x86/arm
+	url = https://github.com/Christopher83/linaro_toolchains_2014.git
