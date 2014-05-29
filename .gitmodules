@@ -1,0 +1,8 @@
+[submodule "source"]
+	path = source
+	url = ../source
+	branch = master
+[submodule "kitchen"]
+	path = kitchen
+	url = ../source
+	branch = kitchen
