@@ -34,13 +34,14 @@ if [ $SD == 1 ]; then
   SD=8
 fi  
 
-if [ $WG = 1 ]; then
-  echo S2W=0 >> $CONFIGFILE;
-else
-  S2W=$(( SL + SR + SU + SD ))
-  echo S2W=$S2W >> $CONFIGFILE;
-fi
+#if [ $WG = 1 ]; then
+#  echo S2W=0 >> $CONFIGFILE;
+#else
+#  S2W=$(( SL + SR + SU + SD ))
+#  echo S2W=$S2W >> $CONFIGFILE;
+#fi
 echo S2W=16 >> $CONFIGFILE;
+echo SP2W=14789 >> $CONFIGFILE;
 
 #DT2W
 DT2W=`grep "item.1.5" /tmp/aroma/gest.prop | cut -d '=' -f2`

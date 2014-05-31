@@ -26,6 +26,9 @@ fi
 S2W="`grep S2W $ELEX_CONF | cut -d '=' -f2`"
   echo $S2W > /sys/android_touch/sweep2wake
   echo Sweep2wake $S2W >> $ELEX_LOGFILE;
+SP2W="`grep SP2W $ELEX_CONF | cut -d '=' -f2`"
+  echo $SP2W > /sys/android_touch/s2w_pattern
+  echo Sweep2wake Pattern $SP2W >> $ELEX_LOGFILE;
 
 #Set Doubletap2wake
 if [ "`grep DT2W=1 $ELEX_CONF`" ]; then
