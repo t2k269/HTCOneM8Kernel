@@ -2334,6 +2334,7 @@ static int synaptics_touch_sysfs_init(void)
 		sysfs_create_file(android_touch_kobj, &dev_attr_cover.attr)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 		|| sysfs_create_file(android_touch_kobj, &dev_attr_sweep2wake.attr) ||
+                sysfs_create_file(android_touch_kobj, &dev_attr_s2w_pattern.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_sweep2sleep.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_doubletap2wake.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_wake_gestures.attr) ||
@@ -2402,6 +2403,7 @@ static void synaptics_touch_sysfs_remove(void)
 #endif
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
+        sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_pattern.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2sleep.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_doubletap2wake.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_wake_gestures.attr);
@@ -2931,6 +2933,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						if (scr_suspended && (gestures_switch || s2w_switch)) {
 							sweep2wake_vert_func(x_pos[0], y_pos[0]);
 							sweep2wake_horiz_func(x_pos[0], y_pos[0], 1);
+                                                        sweep2wake_pattern_func(x_pos[0], y_pos[0]);
 						}
 #endif
 
