@@ -585,17 +585,21 @@ static void sweep2wake_horiz_func(int x, int y, int wake)
 }
 
 
-static int s2w_slot_locations[] = {250,  835, 538,  835, 826,  835, 
-                                   250, 1125, 538, 1125, 826, 1125,
-                                   250, 1411, 538, 1411, 826, 1411};
+static int s2w_slot_locations[] = {0,  720, 480,  720, 960,  720, 
+                                   0, 1200, 480, 1200, 960, 1200,
+                                   0, 1680, 480, 1680, 960, 1680};
+static int s2w_slot_width = 480;
+static int s2w_slot_height = 480;
 static int s2w_last_match_time = 0;
 static int s2w_matched_pattern = 0;
+static int s2w_last_digit = 0;
 #define S2W_PATTERN_MAX_LENGTH 10
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 static void reset_sp2w(void)
 {
 	s2w_last_match_time = 0;
 	s2w_matched_pattern = 0;
+	s2w_last_digit = 0;
 }
 							   
 static void sweep2wake_pattern_func(int x, int y)
@@ -606,17 +610,17 @@ static void sweep2wake_pattern_func(int x, int y)
 	if (s2w_switch & SWEEP_PATTERN && s2w_target_pattern[0]) {
 		digit = 0;
 		for (i = 0; i < 9 * 2; i += 2) {
-			dx = s2w_slot_locations[i+0] - x;
-			dy = s2w_slot_locations[i+1] - y;
-			if (dx * dx + dy * dy <= 50 * 50) {
+			dx = s2w_slot_locations[i+0];
+			dy = s2w_slot_locations[i+1];
+			if (x >= dx && y >= dy && x < dx + s2w_slot_width && y < dy + s2w_slot_height) {
 				digit = (i >> 1) + 1;
 				break;
 			}
 		}
-		if (digit) {
+		if (digit && digit != s2w_last_digit) {
 			// If touching a slot, check for the last touch slot time, reset if too long
 			cputime64_t now = ktime_to_ms(ktime_get());
-			if (s2w_last_match_time && now - s2w_last_match_time > 1000) {
+			if (s2w_last_match_time && now - s2w_last_match_time > 500) {
 				reset_sp2w();
 			}
 			if (s2w_target_pattern[s2w_matched_pattern] == digit) {
@@ -631,6 +635,7 @@ static void sweep2wake_pattern_func(int x, int y)
 				// Wrong pattern, reset
 				reset_sp2w();
 			}
+			s2w_last_digit = digit;
 		}
 	}
 }
