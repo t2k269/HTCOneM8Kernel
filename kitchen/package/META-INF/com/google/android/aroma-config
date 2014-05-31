@@ -1,0 +1,201 @@
+﻿### LICENSE:
+#
+# Copyright (C) 2011 Ahmad Amarullah ( http://amarullz.com/ )
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+### FILE INFO:
+#
+# AROMA Installer 2.70 - AROMA Installer Test Script Configuration
+#       (c) 2011-2012 by Ahmad Amarullah
+#           amarullz - xda-developers
+#           http://www.amarullz.com/
+#
+#       Binary Version  : 2.70RC2
+#       Binary Codename : Flamboyan
+#
+### INFO:
+#
+# * AROMA Resource Dir  = META-INF/com/google/android/aroma
+#
+# * AROMA Temporary Dir = /tmp/aroma/
+
+ini_set("rom_name",             "ElementalX");
+ini_set("rom_version",          "0.18");
+ini_set("rom_author",           "flar2");
+ini_set("rom_device",           "HTC One m8");
+ini_set("rom_date",             "May 27, 2014");
+
+ini_set("force_colorspace","rgba");
+
+fontresload( "0", "ttf/DroidSans.ttf", "12" );
+fontresload( "1", "ttf/DroidSans.ttf", "18" );
+
+splash(2000, "elementalx");
+
+viewbox(
+    "Welcome",
+    "You are about to flash <b>"+
+	  ini_get("rom_name")+
+	"</b>\nfor <b>"+ini_get("rom_device")+"</b>.\n\n"+
+    
+	
+      "  VERSION\t: <b><#selectbg_g>"+ini_get("rom_version")+"</#></b>\n"+
+      "  AUTHOR \t: <b><#selectbg_g>"+ini_get("rom_author")+"</#></b>\n"+
+      "  RELEASED\t: <b><#selectbg_g>"+ini_get("rom_date")+"</#></b>\n\n\n"+
+
+    "Press Next to Continue...",
+    "@welcome"
+);
+
+agreebox("Terms Of Use","Please read the ElementalX Terms of Use...","icons/agreement",
+   "" + readfile_aroma("agreement.txt"),
+   "I Agree with these Terms Of Use...",
+   "Please check the box..."
+);
+
+alert(
+  "NOTE:",
+  "This kernel will allow you to choose hardware settings that may not work with your device. If you install this and have problems such as instability or random reboots, please reinstall with a lower CPU frequency or higher voltage.",
+  "@alert",
+  "OK"
+);
+
+
+selectbox(
+  "CPU Settings","","","cpu.prop",
+
+  "Adjust CPU frequencies","",2,
+  "Yes","Overclocking/underclocking options",0,
+  "No","Stock frequencies",1,
+
+  "Undervolting","Lowers voltage for lowest frequency. Undervolting may cause instability",2,
+  "Stock Voltage","",1,
+  "Undervolt -15mV","",0,
+  "Undervolt -30mV","",0,
+  "Undervolt -45mV","",0,
+
+  "Select thermal throttling","",2,
+  "Performance","(best performance)",1,
+  "Stock","(cooler)",0
+);
+
+if file_getprop("/tmp/aroma/cpu.prop","selected.1") == "1"
+then
+
+selectbox(
+  "Maximum CPU Frequency","<b>Select maximum CPU frequency.</b>\n","@info","freq.prop",
+  "1728MHz","",0,
+  "1958MHz","",0,
+  "2265MHz","",0,
+  "2458MHz","",0,
+  "2573MHz","",0,
+  "2650MHz","",0,
+  "2726MHz","",0,
+  "2803MHz","",0
+);
+
+endif;
+
+selectbox(
+  "GPU Settings","","","gpu.prop",
+
+  "Select maximum GPU frequency","",2,
+  "578Mhz","(stock)",1,
+  "462Mhz","(underclocked)",0,
+  "389MHz","(underclocked)",0,
+
+  "Select GPU governor","",2,
+  "Stock","",1,
+  "Simple-ondemand","(more aggressive)",0
+);
+
+selectbox(
+  "Wake Gestures","<b>Customize Sweep2wake and DoubleTap2wake</b>\n","@info","wg.prop",
+  "Stock","Do not modify HTC Motion Launch Gestures",0,
+  "Remove motion requirement","Use launch gestures without having to move phone",1,
+  "Traditional S2W/DT2W","S2W/DT2W wake screen only",0
+);
+
+if file_getprop("/tmp/aroma/wg.prop","selected.0") == "2" || file_getprop("/tmp/aroma/wg.prop","selected.0") == "3"
+then
+checkbox(
+  "Wake Gestures","<b>Select the gestures you would like to use</b>","","gest.prop",
+  
+  "Available Gestures:","",2,
+  "Sweep right","",1,
+  "Sweep left","",1,
+  "Sweep up","",1,
+  "Sweep down","",1,
+  "Double tap","",1,
+
+  "Other Options","",2,
+  "Vibrate on wake","enable haptic feedback on successful gesture",1,
+  "Pocket Detection","prevent accidental wakes (experimental)",1,
+  "Volume buttons launch camera in landscape","",1
+);
+endif;
+
+selectbox(
+  "Sweep2Sleep","<b>Sweep across navbar area to put phone to sleep</b>","","s2s.prop",
+  "Disable Sweep2Sleep","",0,
+  "Sweep right","",0,
+  "Sweep left","(default)",1,
+  "Sweep left or right","",0
+);
+
+checkbox(
+  "Other settings","<b>Select the mods you want to install</b>","@personalize","mods.prop",
+  "Enable USB fastcharge","",0,
+  "Disable fsync","Faster fileystem performance, but risk of data loss",0,
+  "Disable max screen off frequency","",0,
+  "Reduce button vibration","",0,
+  "Enable gboost","Enhanced gaming performance",1,
+  "Disable magnetic cover sensor","",0
+);
+
+
+menubox(
+  "ElementalX Installer",
+  "Ready to install",
+  "@info",
+  "menu.prop",
+  "Install ElementalX","","@install",
+  "Abort installation","","@default"
+);
+
+if prop("menu.prop","selected")=="2"
+then
+  exit("");
+endif;
+
+setvar("retstatus",
+install(
+  "Installing",
+  "Installing ElementalX Kernel...\nPlease wait...",
+  "@install")
+);
+
+ini_set("text_next", "Finish");
+
+if getvar("retstatus")=="0" then
+  viewbox(
+  "Installation Completed",
+  "<#080>Congratulations...</#>\n\n"+
+  "ElementalX has been installed successfully!\n\n"+
+  "Enjoy!",
+  "@info"
+);
+else
+   viewbox("Installation Failed","\n\nInstaller Status: "+ getvar("retstatus"),"@alert");
+endif;
