@@ -1794,7 +1794,7 @@ static int get_prop_bms_current_now(struct qpnp_bms_chip *chip)
 
 static int get_prop_bms_charge_counter(struct qpnp_bms_chip *chip)
 {
-	int64_t cc_raw;
+	int64_t cc_raw = 0;
 
 	mutex_lock(&chip->bms_output_lock);
 	lock_output_data(chip);
@@ -1807,7 +1807,7 @@ static int get_prop_bms_charge_counter(struct qpnp_bms_chip *chip)
 
 static int get_prop_bms_charge_counter_shadow(struct qpnp_bms_chip *chip)
 {
-	int64_t cc_raw;
+	int64_t cc_raw = 0;
 
 	mutex_lock(&chip->bms_output_lock);
 	lock_output_data(chip);
@@ -2148,10 +2148,10 @@ static int report_cc_based_soc(struct qpnp_bms_chip *chip)
 	if (chip->last_soc != soc && !chip->last_soc_unbound)
 		chip->last_soc_change_sec = last_change_sec;
 
-	pr_info("last_soc = %d, calculated_soc = %d, soc = %d, time since last change = %d,"
+	/*pr_info("last_soc = %d, calculated_soc = %d, soc = %d, time since last change = %d,"
 			"ori_soc_change = %d, soc_change = %d\n",
 			chip->last_soc, chip->calculated_soc,
-			soc, time_since_last_change_sec, bms_dbg.ori_soc_change, soc_change);
+			soc, time_since_last_change_sec, bms_dbg.ori_soc_change, soc_change);*/
 
 	chip->last_soc = bound_soc(soc);
 	backup_soc_and_iavg(chip, batt_temp, chip->last_soc);
@@ -2433,7 +2433,7 @@ out:
 #endif 
 static int clamp_soc_based_on_voltage(struct qpnp_bms_chip *chip, int soc)
 {
-	int rc, vbat_uv, batt_temp;
+	int rc, vbat_uv = 0, batt_temp;
 
 	rc = get_battery_voltage(chip, &vbat_uv);
 	if (rc < 0) {
@@ -2684,7 +2684,7 @@ done_calculating:
 	} else {
 		report_state_of_charge(chip);
 	}
-	pr_info("FCC=%d,UC=%d,RC=%d,CC_uAh/ori=%d/%d,RUC=%d,SOC=%d,raw_soc=%d,"
+	/*pr_info("FCC=%d,UC=%d,RC=%d,CC_uAh/ori=%d/%d,RUC=%d,SOC=%d,raw_soc=%d,"
 		       "start_pc=%d,end_pc=%d,OCV_uV/ori=%d/%d,OCV_raw=%x,"
 		       "rbatt=%d,rbatt_sf=%d,batt_temp=%d,soc_rbatt=%d,"
 		       "ori_uuc_uah=%d,uuc_rbatt=%d,uuc_iavg_ma=%d,"
@@ -2704,7 +2704,7 @@ done_calculating:
 			bms_dbg.shutdown_soc, bms_dbg.time_last_change_s, bms_dbg.adjusted_soc,
 			chip->calculated_soc, raw->cc, raw->shdw_cc, chip->ocv_reading_at_100,
 			chip->cc_backup_uah, chip->ocv_backup_uv, consistent_flag, is_ocv_update_start,
-			htc_batt_bms_timer.no_ocv_update_period_ms);
+			htc_batt_bms_timer.no_ocv_update_period_ms);*/
 
 	get_current_time(&chip->last_recalc_time);
 	chip->first_time_calc_soc = 0;
@@ -2715,7 +2715,7 @@ done_calculating:
 static int calculate_soc_from_voltage(struct qpnp_bms_chip *chip)
 {
 	int voltage_range_uv, voltage_remaining_uv, voltage_based_soc;
-	int rc, vbat_uv;
+	int rc, vbat_uv = 0;
 
 	rc = get_battery_voltage(chip, &vbat_uv);
 	if (rc < 0) {
@@ -2961,7 +2961,7 @@ static void configure_vbat_monitor_high(struct qpnp_bms_chip *chip)
 static void btm_notify_vbat(enum qpnp_tm_state state, void *ctx)
 {
 	struct qpnp_bms_chip *chip = ctx;
-	int vbat_uv;
+	int vbat_uv = 0;
 	struct qpnp_vadc_result result;
 	int rc;
 
@@ -3875,7 +3875,7 @@ static int dump_all(void)
 	if(BATT_LOG_BUF_LEN - len <= 1)
 		pr_warn("batt log length maybe out of buffer range!!!");
 
-	pr_info("%s\n", batt_log_buf);
+	//pr_info("%s\n", batt_log_buf);
 	return 0;
 }
 
@@ -4190,7 +4190,7 @@ static void disable_ocv_update_with_reason(bool disable, int reason)
 static void pm8941_btm_voltage_alarm_notify(enum qpnp_tm_state state, void *ctx)
 {
 	struct qpnp_bms_chip *chip = ctx;
-	int vbat_uv;
+	int vbat_uv = 0;
 	struct qpnp_vadc_result result;
 
 	qpnp_vadc_read(chip->vadc_dev, VBAT_SNS, &result);

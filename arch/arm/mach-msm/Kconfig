@@ -1991,6 +1991,12 @@ config MSM_CPU_FREQ_MIN
 
 endif # CPU_FREQ_MSM
 
+config MSM_CPU_VOLTAGE_CONTROL
+	bool "Userspace CPU Voltage Control"
+	default y
+	help
+	  This enables userspace CPU Voltage Control.
+
 config MSM_DEVFREQ_CPUBW
 	bool "Devfreq device for CPU<->DDR IB/AB BW voting"
 	depends on PM_DEVFREQ
@@ -3112,6 +3118,13 @@ config MSM_CPU_PWRCTL
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
 
+config FORCE_FAST_CHARGE
+	bool "Increase input current limit to 1100mA when charging via USB"
+	default y
+	help
+	  A simple sysfs interface to increase input current limit to
+	  1100mA when charging via USB.
+
 config MSM_UARTDM_Core_v14
 	bool "Use MSM BLSP based HSUART Core v1.4"
 	depends on SERIAL_MSM_HS
@@ -3213,3 +3226,8 @@ config PERFLOCK
     bool "HTC Performance Lock"
 
 
+config MSM_SLEEPER
+	bool "Limit max frequency while screen is off"
+	default y
+	help
+	  Limit max frequency while screen is off

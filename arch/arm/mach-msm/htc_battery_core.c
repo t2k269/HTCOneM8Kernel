@@ -30,6 +30,11 @@
 #include <mach/devices_dtb.h>
 #include <linux/qpnp/qpnp-charger.h>
 
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+#include <linux/synaptics_i2c_rmi.h>
+unsigned int phone_call_stat;
+#endif
+
 #define USB_MA_0       (0)
 #define USB_MA_500     (500)
 #define USB_MA_1500    (1500)
@@ -456,6 +461,14 @@ static ssize_t htc_battery_set_phone_call(struct device *dev,
 		battery_core_info.func.func_context_event_handler(EVENT_TALK_START);
 	else
 		battery_core_info.func.func_context_event_handler(EVENT_TALK_STOP);
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	phone_call_stat = phone_call;
+	if (phone_call_stat)
+		printk("[WG] in phone call\n");
+	else
+		printk("[WG] phone call end\n");
+#endif
 
 	return count;
 }
@@ -1183,7 +1196,7 @@ int htc_battery_core_update_changed(void)
 	battery_core_info.update_time = jiffies;
 	mutex_unlock(&battery_core_info.info_lock);
 
-	BATT_EMBEDDED("ID=%d,level=%d,level_raw=%d,vol=%d,temp=%d,current=%d,"
+	/*BATT_EMBEDDED("ID=%d,level=%d,level_raw=%d,vol=%d,temp=%d,current=%d,"
 		"chg_src=%d,chg_en=%d,full_bat=%d,over_vchg=%d,"
 		"batt_state=%d,cable_ready=%d,overload=%d,ui_chg_full=%d",
 			battery_core_info.rep.batt_id,
@@ -1199,7 +1212,7 @@ int htc_battery_core_update_changed(void)
 			battery_core_info.rep.batt_state,
 			battery_core_info.rep.cable_ready,
 			battery_core_info.rep.overload,
-			battery_core_info.htc_charge_full);
+			battery_core_info.htc_charge_full);*/
 
 
 	
