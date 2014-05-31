@@ -258,6 +258,7 @@ extern unsigned int get_tamper_sf(void);
 #define SWEEP_LEFT 0x02
 #define SWEEP_UP 0x04
 #define SWEEP_DOWN 0x08
+#define SWEEP_PATTERN 0x10
 #define DT2W_TIMEOUT_MAX 500
 #define DT2W_DELTA 230
 #define S2W_PWRKEY_DUR 60
@@ -576,6 +577,62 @@ static void sweep2wake_horiz_func(int x, int y, int wake)
 		}
 	}
 }
+
+static int s2w_slot_locations[] = {0,  720, 480,  720, 960,  720, 
+                                   0, 1200, 480, 1200, 960, 1200,
+                                   0, 1680, 480, 1680, 960, 1680};
+static int s2w_slot_width = 480;
+static int s2w_slot_height = 480;
+static int s2w_last_match_time = 0;
+static int s2w_matched_pattern = 0;
+static int s2w_last_digit = 0;
+#define S2W_PATTERN_MAX_LENGTH 10
+static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
+static void reset_sp2w(void)
+{
+	s2w_last_match_time = 0;
+	s2w_matched_pattern = 0;
+	s2w_last_digit = 0;
+}
+							   
+static void sweep2wake_pattern_func(int x, int y)
+{
+	int i;
+	int dx, dy;
+	int digit;
+	if (s2w_switch & SWEEP_PATTERN && s2w_target_pattern[0]) {
+		digit = 0;
+		for (i = 0; i < 9 * 2; i += 2) {
+			dx = s2w_slot_locations[i+0];
+			dy = s2w_slot_locations[i+1];
+			if (x >= dx && y >= dy && x < dx + s2w_slot_width && y < dy + s2w_slot_height) {
+				digit = (i >> 1) + 1;
+				break;
+			}
+		}
+		if (digit && digit != s2w_last_digit) {
+			// If touching a slot, check for the last touch slot time, reset if too long
+			cputime64_t now = ktime_to_ms(ktime_get());
+			if (s2w_last_match_time && now - s2w_last_match_time > 500) {
+				reset_sp2w();
+			}
+			if (s2w_target_pattern[s2w_matched_pattern] == digit) {
+				// Correct, next slot
+				s2w_matched_pattern++;
+				if (s2w_target_pattern[s2w_matched_pattern] == 0) {
+					// Fully matched, wake the phone and reset
+					sweep2wake_pwrtrigger(1);
+					reset_sp2w();
+				}
+			} else {
+				// Wrong pattern, reset
+				reset_sp2w();
+			}
+			s2w_last_digit = digit;
+		}
+	}
+}
+
 #endif
 
 
@@ -1986,8 +2043,12 @@ static ssize_t synaptics_sweep2wake_dump(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	sscanf(buf, "%d ", &s2w_switch_temp);
-	if (s2w_switch_temp < 0 || s2w_switch_temp > 15)
+	if (s2w_switch_temp < 0) {
 		s2w_switch_temp = 15;
+	}
+	if (s2w_switch_temp > 15) {
+		s2w_switch_temp = SWEEP_PATTERN;
+	}
 
 	if (!scr_suspended)
 		s2w_switch = s2w_switch_temp;
@@ -1998,6 +2059,31 @@ static ssize_t synaptics_sweep2wake_dump(struct device *dev,
 
 static DEVICE_ATTR(sweep2wake, 0666,
 	synaptics_sweep2wake_show, synaptics_sweep2wake_dump);
+
+static ssize_t synaptics_s2w_pattern_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+	int i;
+	for (i = 0; s2w_target_pattern[i]; i++) {
+		buf[i] = s2w_target_pattern[i] + '0';
+	}
+	buf[i] = '\n';
+	count += (size_t)i + 1;
+	return count;
+}
+static ssize_t synaptics_s2w_pattern_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int i;
+	for (i = 0; i < count && buf[i] >= '1' && buf[i] <= '9'; i++) {
+		s2w_target_pattern[i] = buf[i] - '0';
+	}
+	s2w_target_pattern[i] = 0;
+	return count;
+}
+static DEVICE_ATTR(s2w_pattern, 0666,
+	synaptics_s2w_pattern_show, synaptics_s2w_pattern_dump);
 
 static ssize_t synaptics_sweep2sleep_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
