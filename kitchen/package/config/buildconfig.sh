@@ -18,11 +18,13 @@ SR=`grep "item.1.1" /tmp/aroma/gest.prop | cut -d '=' -f2`
 SL=`grep "item.1.2" /tmp/aroma/gest.prop | cut -d '=' -f2`
 SU=`grep "item.1.3" /tmp/aroma/gest.prop | cut -d '=' -f2`
 SD=`grep "item.1.4" /tmp/aroma/gest.prop | cut -d '=' -f2`
+SP=`grep "item.1.5" /tmp/aroma/gest.prop | cut -d '=' -f2`
 echo -e "\n\n##### Sweep2wake Settings #####\n# 0 to disable sweep2wake" >> $CONFIGFILE
 echo -e "# 1 to enable sweep right" >> $CONFIGFILE
 echo -e "# 2 to enable sweep left" >> $CONFIGFILE
 echo -e "# 4 to enable sweep up" >> $CONFIGFILE
 echo -e "# 8 to enable sweep down\n" >> $CONFIGFILE
+echo -e "# 16 to enable sweep pattern\n" >> $CONFIGFILE
 echo -e "# For combinations, add values together (e.g. all gestures enabled = 15)\n" >> $CONFIGFILE
 if [ $SL = 1 ]; then
   SL=2
@@ -33,15 +35,21 @@ fi
 if [ $SD == 1 ]; then
   SD=8
 fi  
+if [ $SP == 1 ]; then
+  SL=0
+  SR=0
+  SU=0
+  SD=0
+  SP=16
+  echo SP2W=14789 >> $CONFIGFILE;
+fi 
 
-#if [ $WG = 1 ]; then
-#  echo S2W=0 >> $CONFIGFILE;
-#else
-#  S2W=$(( SL + SR + SU + SD ))
-#  echo S2W=$S2W >> $CONFIGFILE;
-#fi
-echo S2W=16 >> $CONFIGFILE;
-echo SP2W=14789 >> $CONFIGFILE;
+if [ $WG = 1 ]; then
+  echo S2W=0 >> $CONFIGFILE;
+else
+  S2W=$(( SL + SR + SU + SD + SP ))
+  echo S2W=$S2W >> $CONFIGFILE;
+fi
 
 #DT2W
 DT2W=`grep "item.1.5" /tmp/aroma/gest.prop | cut -d '=' -f2`

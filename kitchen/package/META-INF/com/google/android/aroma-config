@@ -58,20 +58,6 @@ viewbox(
     "@welcome"
 );
 
-agreebox("Terms Of Use","Please read the ElementalX Terms of Use...","icons/agreement",
-   "" + readfile_aroma("agreement.txt"),
-   "I Agree with these Terms Of Use...",
-   "Please check the box..."
-);
-
-alert(
-  "NOTE:",
-  "This kernel will allow you to choose hardware settings that may not work with your device. If you install this and have problems such as instability or random reboots, please reinstall with a lower CPU frequency or higher voltage.",
-  "@alert",
-  "OK"
-);
-
-
 selectbox(
   "CPU Settings","","","cpu.prop",
 
@@ -80,14 +66,14 @@ selectbox(
   "No","Stock frequencies",1,
 
   "Undervolting","Lowers voltage for lowest frequency. Undervolting may cause instability",2,
-  "Stock Voltage","",1,
+  "Stock Voltage","",0,
   "Undervolt -15mV","",0,
   "Undervolt -30mV","",0,
-  "Undervolt -45mV","",0,
+  "Undervolt -45mV","",1,
 
   "Select thermal throttling","",2,
-  "Performance","(best performance)",1,
-  "Stock","(cooler)",0
+  "Performance","(best performance)",0,
+  "Stock","(cooler)",1
 );
 
 if file_getprop("/tmp/aroma/cpu.prop","selected.1") == "1"
@@ -123,8 +109,8 @@ selectbox(
 selectbox(
   "Wake Gestures","<b>Customize Sweep2wake and DoubleTap2wake</b>\n","@info","wg.prop",
   "Stock","Do not modify HTC Motion Launch Gestures",0,
-  "Remove motion requirement","Use launch gestures without having to move phone",1,
-  "Traditional S2W/DT2W","S2W/DT2W wake screen only",0
+  "Remove motion requirement","Use launch gestures without having to move phone",0,
+  "Traditional S2W/DT2W","S2W/DT2W wake screen only",1
 );
 
 if file_getprop("/tmp/aroma/wg.prop","selected.0") == "2" || file_getprop("/tmp/aroma/wg.prop","selected.0") == "3"
@@ -133,11 +119,12 @@ checkbox(
   "Wake Gestures","<b>Select the gestures you would like to use</b>","","gest.prop",
   
   "Available Gestures:","",2,
-  "Sweep right","",1,
-  "Sweep left","",1,
-  "Sweep up","",1,
-  "Sweep down","",1,
-  "Double tap","",1,
+  "Sweep right","",0,
+  "Sweep left","",0,
+  "Sweep up","",0,
+  "Sweep down","",0,
+  "Double tap","",0,
+  "Sweep Pattern","",1,
 
   "Other Options","",2,
   "Vibrate on wake","enable haptic feedback on successful gesture",1,
@@ -148,15 +135,15 @@ endif;
 
 selectbox(
   "Sweep2Sleep","<b>Sweep across navbar area to put phone to sleep</b>","","s2s.prop",
-  "Disable Sweep2Sleep","",0,
+  "Disable Sweep2Sleep","",1,
   "Sweep right","",0,
-  "Sweep left","(default)",1,
+  "Sweep left","(default)",0,
   "Sweep left or right","",0
 );
 
 checkbox(
   "Other settings","<b>Select the mods you want to install</b>","@personalize","mods.prop",
-  "Enable USB fastcharge","",0,
+  "Enable USB fastcharge","",1,
   "Disable fsync","Faster fileystem performance, but risk of data loss",0,
   "Disable max screen off frequency","",0,
   "Reduce button vibration","",0,
