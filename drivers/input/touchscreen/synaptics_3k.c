@@ -579,17 +579,12 @@ static void sweep2wake_horiz_func(int x, int y, int wake)
 }
 
 #define S2W_PATTERN_MAX_LENGTH 10
-#define S2W_PATTERN_MOVE_THRESHOLD 50
 
-static int s2w_slot_locations[] = {0,  720, 480,  720, 960,  720, 
-                                   0, 1200, 480, 1200, 960, 1200,
-                                   0, 1680, 480, 1680, 960, 1680};
-static int s2w_slot_width = 480;
-static int s2w_slot_height = 480;
+static int s2w_slot_locations[] = {0,    0, 480, 1080, 480,    0, 480, 1080, 960,    0, 480, 1080, 
+                                   0, 1080, 480,  720, 480, 1080, 480,  720, 960, 1080, 480,  720,
+                                   0, 1800, 480, 1080, 480, 1800, 480, 1080, 960, 1800, 480, 1080};
 static int s2w_last_digit = 0;
 static int s2w_matched_pattern = 0;
-static int s2w_last_x = -10000;
-static int s2w_last_y = -10000;
 static int s2w_last_touch_time = 0;
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 static void reset_sp2w(void)
@@ -601,49 +596,53 @@ static void reset_sp2w(void)
 static void sweep2wake_pattern_func(int x, int y)
 {
 	int i;
-	int dx, dy;
+	int dx, dy, w, h;
 	int digit;
 	bool first_touch;
 
 	if (s2w_switch & SWEEP_PATTERN) {
 		cputime64_t now = ktime_to_ms(ktime_get());
 		first_touch = false;
-		if (now - s2w_last_touch_time > 500 ||
-		    abs(x - s2w_last_x) > S2W_PATTERN_MOVE_THRESHOLD ||
-		    abs(y - s2w_last_y) > S2W_PATTERN_MOVE_THRESHOLD) {
+		if (now - s2w_last_touch_time > 500) {
+			reset_sp2w();
 			first_touch = true;
 		}
 		s2w_last_touch_time = now;
 
 		if (s2w_target_pattern[0]) {
 			digit = 0;
-			for (i = 0; i < 9 * 2; i += 2) {
+			for (i = 0; i < 9 * 4; i += 4) {
 				dx = s2w_slot_locations[i+0];
 				dy = s2w_slot_locations[i+1];
-				if (x >= dx && y >= dy && x < dx + s2w_slot_width && y < dy + s2w_slot_height) {
-					digit = (i >> 1) + 1;
+				w = s2w_slot_locations[i+2];
+				h = s2w_slot_locations[i+3];
+				if (x >= dx && y >= dy && x < dx + w && y < dy + h) {
+					digit = (i >> 2) + 1;
 					break;
 				}
 			}
+			// pr_info("[SP2W] Digit: %d, ld: %d, first t: %d, s2w_matched_pattern: %d\n", digit, s2w_last_digit, first_touch, s2w_matched_pattern);
 			if (first_touch) {
 				if (digit == s2w_target_pattern[0]) {
+					s2w_last_digit = digit;
 					s2w_matched_pattern = 1;
 				}
-			}
-			if (s2w_matched_pattern && digit && digit != s2w_last_digit) {
-				if (s2w_target_pattern[s2w_matched_pattern] == digit) {
-					// Correct, next slot
-					s2w_matched_pattern++;
-					if (s2w_target_pattern[s2w_matched_pattern] == 0) {
-						// Fully matched, wake the phone and reset
-						sweep2wake_pwrtrigger(1);
+			} else {
+				if (s2w_matched_pattern && digit && digit != s2w_last_digit) {
+					if (s2w_target_pattern[s2w_matched_pattern] == digit) {
+						// Correct, next slot
+						s2w_matched_pattern++;
+						if (s2w_target_pattern[s2w_matched_pattern] == 0) {
+							// Fully matched, wake the phone and reset
+							sweep2wake_pwrtrigger(1);
+							reset_sp2w();
+						}
+					} else {
+						// Wrong pattern, reset
 						reset_sp2w();
 					}
-				} else {
-					// Wrong pattern, reset
-					reset_sp2w();
+					s2w_last_digit = digit;
 				}
-				s2w_last_digit = digit;
 			}
 		}
 	}
