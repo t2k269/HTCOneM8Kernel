@@ -585,7 +585,6 @@ static int s2w_slot_locations[] = {0,    0, 480, 1080, 480,    0, 480, 1080, 960
                                    0, 1800, 480, 1080, 480, 1800, 480, 1080, 960, 1800, 480, 1080};
 static int s2w_last_digit = 0;
 static int s2w_matched_pattern = 0;
-static int s2w_last_touch_time = 0;
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 static void reset_sp2w(void)
 {
@@ -593,22 +592,13 @@ static void reset_sp2w(void)
 	s2w_matched_pattern = 0;
 }
 							   
-static void sweep2wake_pattern_func(int x, int y)
+static void sweep2wake_pattern_func(int x, int y, bool first_press)
 {
 	int i;
 	int dx, dy, w, h;
 	int digit;
-	bool first_touch;
 
 	if (s2w_switch & SWEEP_PATTERN) {
-		cputime64_t now = ktime_to_ms(ktime_get());
-		first_touch = false;
-		if (now - s2w_last_touch_time > 500) {
-			reset_sp2w();
-			first_touch = true;
-		}
-		s2w_last_touch_time = now;
-
 		if (s2w_target_pattern[0]) {
 			digit = 0;
 			for (i = 0; i < 9 * 4; i += 4) {
@@ -621,8 +611,7 @@ static void sweep2wake_pattern_func(int x, int y)
 					break;
 				}
 			}
-			// pr_info("[SP2W] Digit: %d, ld: %d, first t: %d, s2w_matched_pattern: %d\n", digit, s2w_last_digit, first_touch, s2w_matched_pattern);
-			if (first_touch) {
+			if (first_press) {
 				if (digit == s2w_target_pattern[0]) {
 					s2w_last_digit = digit;
 					s2w_matched_pattern = 1;
@@ -2948,7 +2937,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						if (scr_suspended && (gestures_switch || s2w_switch)) {
 							sweep2wake_vert_func(x_pos[0], y_pos[0]);
 							sweep2wake_horiz_func(x_pos[0], y_pos[0], 1);
-                                                        sweep2wake_pattern_func(x_pos[0], y_pos[0]);
+                                                        sweep2wake_pattern_func(x_pos[0], y_pos[0], finger_press_changed & BIT(i));
 						}
 #endif
 
