@@ -584,58 +584,61 @@ static void sweep2wake_horiz_func(int x, int y, int wake)
 	}
 }
 
-
-static int s2w_slot_locations[] = {0,  720, 480,  720, 960,  720, 
-                                   0, 1200, 480, 1200, 960, 1200,
-                                   0, 1680, 480, 1680, 960, 1680};
-static int s2w_slot_width = 480;
-static int s2w_slot_height = 480;
-static int s2w_last_match_time = 0;
-static int s2w_matched_pattern = 0;
-static int s2w_last_digit = 0;
 #define S2W_PATTERN_MAX_LENGTH 10
+
+static int s2w_slot_locations[] = {0,    0, 480, 1080, 480,    0, 480, 1080, 960,    0, 480, 1080, 
+                                   0, 1080, 480,  720, 480, 1080, 480,  720, 960, 1080, 480,  720,
+                                   0, 1800, 480, 1080, 480, 1800, 480, 1080, 960, 1800, 480, 1080};
+static int s2w_last_digit = 0;
+static int s2w_matched_pattern = 0;
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 static void reset_sp2w(void)
 {
-	s2w_last_match_time = 0;
-	s2w_matched_pattern = 0;
 	s2w_last_digit = 0;
+	s2w_matched_pattern = 0;
 }
 							   
-static void sweep2wake_pattern_func(int x, int y)
+static void sweep2wake_pattern_func(int x, int y, bool first_press)
 {
 	int i;
-	int dx, dy;
+	int dx, dy, w, h;
 	int digit;
-	if (s2w_switch & SWEEP_PATTERN && s2w_target_pattern[0]) {
-		digit = 0;
-		for (i = 0; i < 9 * 2; i += 2) {
-			dx = s2w_slot_locations[i+0];
-			dy = s2w_slot_locations[i+1];
-			if (x >= dx && y >= dy && x < dx + s2w_slot_width && y < dy + s2w_slot_height) {
-				digit = (i >> 1) + 1;
-				break;
+
+	if (s2w_switch & SWEEP_PATTERN) {
+		if (s2w_target_pattern[0]) {
+			digit = 0;
+			for (i = 0; i < 9 * 4; i += 4) {
+				dx = s2w_slot_locations[i+0];
+				dy = s2w_slot_locations[i+1];
+				w = s2w_slot_locations[i+2];
+				h = s2w_slot_locations[i+3];
+				if (x >= dx && y >= dy && x < dx + w && y < dy + h) {
+					digit = (i >> 2) + 1;
+					break;
+				}
 			}
-		}
-		if (digit && digit != s2w_last_digit) {
-			// If touching a slot, check for the last touch slot time, reset if too long
-			cputime64_t now = ktime_to_ms(ktime_get());
-			if (s2w_last_match_time && now - s2w_last_match_time > 500) {
-				reset_sp2w();
-			}
-			if (s2w_target_pattern[s2w_matched_pattern] == digit) {
-				// Correct, next slot
-				s2w_matched_pattern++;
-				if (s2w_target_pattern[s2w_matched_pattern] == 0) {
-					// Fully matched, wake the phone and reset
-					sweep2wake_pwrtrigger(1);
-					reset_sp2w();
+			if (first_press) {
+				if (digit == s2w_target_pattern[0]) {
+					s2w_last_digit = digit;
+					s2w_matched_pattern = 1;
 				}
 			} else {
-				// Wrong pattern, reset
-				reset_sp2w();
+				if (s2w_matched_pattern && digit && digit != s2w_last_digit) {
+					if (s2w_target_pattern[s2w_matched_pattern] == digit) {
+						// Correct, next slot
+						s2w_matched_pattern++;
+						if (s2w_target_pattern[s2w_matched_pattern] == 0) {
+							// Fully matched, wake the phone and reset
+							sweep2wake_pwrtrigger(1);
+							reset_sp2w();
+						}
+					} else {
+						// Wrong pattern, reset
+						reset_sp2w();
+					}
+					s2w_last_digit = digit;
+				}
 			}
-			s2w_last_digit = digit;
 		}
 	}
 }
@@ -2069,7 +2072,6 @@ static ssize_t synaptics_sweep2wake_dump(struct device *dev,
 static DEVICE_ATTR(sweep2wake, 0666,
 	synaptics_sweep2wake_show, synaptics_sweep2wake_dump);
 
-
 static ssize_t synaptics_s2w_pattern_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -2086,7 +2088,7 @@ static ssize_t synaptics_s2w_pattern_dump(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	int i;
-	for (i = 0; i < count && buf[i] >= '1' && buf[i] <= '0'; i++) {
+	for (i = 0; i < count && buf[i] >= '1' && buf[i] <= '9'; i++) {
 		s2w_target_pattern[i] = buf[i] - '0';
 	}
 	s2w_target_pattern[i] = 0;
@@ -2945,7 +2947,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						if (scr_suspended && (gestures_switch || s2w_switch)) {
 							sweep2wake_vert_func(x_pos[0], y_pos[0]);
 							sweep2wake_horiz_func(x_pos[0], y_pos[0], 1);
-							sweep2wake_pattern_func(x_pos[0], y_pos[0]);
+							sweep2wake_pattern_func(x_pos[0], y_pos[0], finger_press_changed & BIT(i));
 						}
 #endif
 
