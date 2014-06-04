@@ -1,0 +1,8 @@
+elementalx.zip
+aik/image-new.img
+aik/ramdisk-new.cpio.gz
+aik/ramdisk
+aik/split_img
+boot/work
+package/boot/boot.img
+package/system/lib/modules/*.ko
