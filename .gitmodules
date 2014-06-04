@@ -2,10 +2,6 @@
 	path = source
 	url = https://github.com/t2k269/HTCOneM8Kernel.git
 	branch = master
-[submodule "kitchen"]
-	path = kitchen
-	url = https://github.com/t2k269/HTCOneM8Kernel.git
-	branch = kitchen
 [submodule "prebuilts/gcc/linux-x86/arm/arm-eabi-4.6"]
 	path = prebuilts/gcc/linux-x86/arm/arm-eabi-4.6
 	url = https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6
