@@ -1,18 +1,22 @@
-set_progress(0.0);
-ui_print("");
-ui_print("Installing Kernel...");
+ui_print("***************************************************");
+ui_print("***************************************************");
+ui_print("HTC M8 Google Edition 4.4.3");
+ui_print("t 2 k 2 6 9");
+ui_print("Sweep to Wake by Pattern");
 
-package_extract_dir("boot", "/tmp/boot");
+assert(
+    getprop("ro.build.product") == "m8"
+);
 
-set_progress(0.1);
+show_progress(0,0);
 
-ui_print("Installing Kernel");
+ui_print("Installing  Kernel");
+assert(package_extract_file("boot.img", "/tmp/boot.img"),
+set_progress(0.3);
+run_program("/sbin/dd", "if=/tmp/boot.img", "of=/dev/block/mmcblk0p42"));
+ui_print("Kernel Installed Successfully!");
 
-run_program("/sbin/dd", "if=/tmp/boot/boot.img", "of=/dev/block/mmcblk0p42"));
-
-set_progress(0.9);
-
-ui_print("");
-ui_print("");
 set_progress(1.0);
-ui_print("Finished!");
+ui_print("");
+ui_print("Installation Completed Successfully!");
+ui_print("    Done.");

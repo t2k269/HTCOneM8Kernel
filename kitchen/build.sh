@@ -1,8 +1,8 @@
 #!/bin/sh
 
 $TOP/kitchen/aik/build.sh
-cp $TOP/kitchen/aik/image-new.img $TOP/kitchen/package/boot/boot.img
+cp $TOP/kitchen/aik/image-new.img $TOP/kitchen/package/boot.img
 
 cd $TOP/kitchen/package
-rm -f ../flashable.zip
-zip -r -9 ../flashable.zip * 
+rm -f ../*.zip
+zip -r -9 ../kernel-m8-gpe-4.4.3-s2w-pattern.zip * 
