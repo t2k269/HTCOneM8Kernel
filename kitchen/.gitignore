@@ -1,4 +1,4 @@
-flashable.zip
+*.zip
 aik/image-new.img
 aik/ramdisk-new.cpio.gz
 aik/ramdisk
