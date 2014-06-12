@@ -582,11 +582,11 @@ static void sweep2wake_horiz_func(int x, int y, int wake)
 
 // Slot locations
 static int s2w_slot_locations[] = {
-		405,  720, 810,  720, 1215,  720,
-		405, 1440, 810, 1440, 1215, 1440,
-		405, 2160, 810, 2160, 1215, 2160,
+		376,  376, 1440,  376, 2504,  376,
+		376, 1440, 1440, 1440, 2504, 1440,
+		376, 2504, 1440, 2504, 2504, 2504,
 	};
-static int s2w_slot_radius = 200;
+static int s2w_slot_radius = 532;
 // Should vibrate with the finger is touching a slot
 static bool s2w_vibr_on_slot = true;
 // Did the finger not touch any slot after first touch
@@ -627,6 +627,9 @@ static void sweep2wake_pattern_func(int x, int y, bool first_press)
 
 	if (s2w_switch & SWEEP_PATTERN) {
 		if (s2w_target_pattern[0]) {
+			// Normalize x into a square of 2880x2880
+			x = (x * 116508) >> 16;
+
 			if (first_press) {
 				reset_sp2w();
 				s2w_first_touch_no_digit = true;
