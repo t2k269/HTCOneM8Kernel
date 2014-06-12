@@ -1,7 +1,7 @@
 #!/bin/sh
 
 $TOP/kitchen/aik/build.sh
-cp $TOP/kitchen/aik/image-new.img $TOP/kitchen/package/boot.img
+cp $TOP/kitchen/aik/image-new.img $TOP/kitchen/package/boot/boot.img
 
 cd $TOP/kitchen/package
 rm -f ../*.zip
