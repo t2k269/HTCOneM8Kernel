@@ -258,6 +258,7 @@ extern unsigned int get_tamper_sf(void);
 #define SWEEP_LEFT 0x02
 #define SWEEP_UP 0x04
 #define SWEEP_DOWN 0x08
+#define SWEEP_PATTERN 0x10
 #define DT2W_TIMEOUT_MAX 500
 #define DT2W_DELTA 230
 #define S2W_PWRKEY_DUR 60
@@ -576,6 +577,106 @@ static void sweep2wake_horiz_func(int x, int y, int wake)
 		}
 	}
 }
+
+#define S2W_PATTERN_MAX_LENGTH 10
+
+// Slot locations
+static int s2w_slot_locations[] = {
+		405,  720, 810,  720, 1215,  720,
+		405, 1440, 810, 1440, 1215, 1440,
+		405, 2160, 810, 2160, 1215, 2160,
+	};
+static int s2w_slot_radius = 200;
+// Should vibrate with the finger is touching a slot
+static bool s2w_vibr_on_slot = true;
+// Did the finger not touch any slot after first touch
+static int s2w_first_touch_no_digit = false;
+// The last matched digit
+static int s2w_last_digit = 0;
+// The last touched digit
+static int s2w_last_touch_digit = 0;
+// The count of matched pattern
+static int s2w_matched_pattern = 0;
+// The actual pattern to be matched
+static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
+
+static void reset_sp2w(void)
+{
+	s2w_last_digit = 0;
+	s2w_last_touch_digit = 0;
+	s2w_first_touch_no_digit = false;
+	s2w_matched_pattern = 0;
+}
+
+static void sweep2wake_slot_touched(bool in_pocket) {
+	int v;
+	if (!s2w_vibr_on_slot || in_pocket)
+		return;
+	v = vib_strength - 10;
+	if (v < 10) v = 10;
+	vib_trigger_event(vib_trigger, v);
+}
+							   
+static void sweep2wake_pattern_func(int x, int y, bool first_press)
+{
+	int i;
+	int dx, dy;
+	int digit;
+	bool in_pocket;
+	int sqr_radius;
+
+	if (s2w_switch & SWEEP_PATTERN) {
+		if (s2w_target_pattern[0]) {
+			if (first_press) {
+				reset_sp2w();
+				s2w_first_touch_no_digit = true;
+			}
+
+			in_pocket = !check_pocket();
+			sqr_radius = s2w_slot_radius * s2w_slot_radius;
+			digit = 0;
+			for (i = 0; i < 9 * 2; i += 2) {
+				dx = x - s2w_slot_locations[i+0];
+				dy = y - s2w_slot_locations[i+1];
+				if (dx * dx + dy * dy <= sqr_radius) {
+					digit = (i >> 1) + 1;
+					break;
+				}
+			}
+
+			if (digit && digit != s2w_last_touch_digit) {
+				sweep2wake_slot_touched(in_pocket);
+			}
+			s2w_last_touch_digit = digit;
+
+			if (s2w_first_touch_no_digit) {
+				if (digit)
+					s2w_first_touch_no_digit = false;
+				if (digit == s2w_target_pattern[0]) {
+					s2w_last_digit = digit;
+					s2w_matched_pattern = 1;
+				}
+			} else {
+				if (s2w_matched_pattern && digit && digit != s2w_last_digit) {
+					if (s2w_target_pattern[s2w_matched_pattern] == digit) {
+						// Correct, next slot
+						s2w_matched_pattern++;
+						if (s2w_target_pattern[s2w_matched_pattern] == 0) {
+							// Fully matched, wake the phone and reset
+							sweep2wake_pwrtrigger(1);
+							reset_sp2w();
+						}
+					} else {
+						// Wrong pattern, reset
+						reset_sp2w();
+					}
+					s2w_last_digit = digit;
+				}
+			}
+		}
+	}
+}
+
 #endif
 
 
@@ -1986,8 +2087,12 @@ static ssize_t synaptics_sweep2wake_dump(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	sscanf(buf, "%d ", &s2w_switch_temp);
-	if (s2w_switch_temp < 0 || s2w_switch_temp > 15)
+	if (s2w_switch_temp < 0) {
 		s2w_switch_temp = 15;
+	}
+	if (s2w_switch_temp > 15) {
+		s2w_switch_temp = SWEEP_PATTERN;
+	}
 
 	if (!scr_suspended)
 		s2w_switch = s2w_switch_temp;
@@ -1998,6 +2103,31 @@ static ssize_t synaptics_sweep2wake_dump(struct device *dev,
 
 static DEVICE_ATTR(sweep2wake, 0666,
 	synaptics_sweep2wake_show, synaptics_sweep2wake_dump);
+
+static ssize_t synaptics_s2w_pattern_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+	int i;
+	for (i = 0; s2w_target_pattern[i]; i++) {
+		buf[i] = s2w_target_pattern[i] + '0';
+	}
+	buf[i] = '\n';
+	count += (size_t)i + 1;
+	return count;
+}
+static ssize_t synaptics_s2w_pattern_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int i;
+	for (i = 0; i < count && buf[i] >= '1' && buf[i] <= '9'; i++) {
+		s2w_target_pattern[i] = buf[i] - '0';
+	}
+	s2w_target_pattern[i] = 0;
+	return count;
+}
+static DEVICE_ATTR(s2w_pattern, 0666,
+	synaptics_s2w_pattern_show, synaptics_s2w_pattern_dump);
 
 static ssize_t synaptics_sweep2sleep_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -2257,6 +2387,7 @@ static int synaptics_touch_sysfs_init(void)
 		sysfs_create_file(android_touch_kobj, &dev_attr_cover.attr)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 		|| sysfs_create_file(android_touch_kobj, &dev_attr_sweep2wake.attr) ||
+		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_pattern.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_sweep2sleep.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_doubletap2wake.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_wake_gestures.attr) ||
@@ -2325,6 +2456,7 @@ static void synaptics_touch_sysfs_remove(void)
 #endif
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_pattern.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2sleep.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_doubletap2wake.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_wake_gestures.attr);
@@ -2854,6 +2986,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						if (scr_suspended && (gestures_switch || s2w_switch)) {
 							sweep2wake_vert_func(x_pos[0], y_pos[0]);
 							sweep2wake_horiz_func(x_pos[0], y_pos[0], 1);
+							sweep2wake_pattern_func(x_pos[0], y_pos[0], finger_press_changed & BIT(i));
 						}
 #endif
 
