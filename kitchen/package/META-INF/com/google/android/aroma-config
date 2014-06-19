@@ -160,7 +160,7 @@ checkbox(
   "Enable USB fastcharge","",1,
   "Disable fsync","Faster fileystem performance, but risk of data loss",0,
   "Disable max screen off frequency","",0,
-  "Reduce button vibration","",0,
+  "Reduce button vibration","",1,
   "Enable gboost","Enhanced gaming performance",1,
   "Disable magnetic cover sensor","",0
 );
