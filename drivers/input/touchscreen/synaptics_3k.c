@@ -621,8 +621,10 @@ static void sweep2wake_pattern_func(int x, int y, bool first_press)
 
 	if (s2w_switch & SWEEP_PATTERN) {
 		if (s2w_target_pattern[0]) {
-			// Normalize x into a square of 2880x2880
+			// Normalize x into a square of 2880x2880. 116508 = 2880 / 1620 * 65536
 			x = (x * 116508) >> 16;
+			// Reserve 1/4 of the top of the screen to be no effect, since my finger doesn't long enough to touch such area. 87381 = 2880 / (2880 - 720) * 65536
+			y = ((y - 720) * 87381) >> 16;
 
 			if (first_press) {
 				reset_sp2w();
