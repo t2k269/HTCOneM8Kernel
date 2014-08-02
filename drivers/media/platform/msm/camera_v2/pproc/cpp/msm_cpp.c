@@ -1117,6 +1117,80 @@ static int msm_cpp_notify_frame_done(struct cpp_device *cpp_dev)
 	return rc;
 }
 
+static int msm_cpp_notify_frame_done_timeout(struct cpp_device *cpp_dev)
+{
+	struct v4l2_event v4l2_evt;
+	struct msm_queue_cmd *frame_qcmd = NULL;
+	struct msm_queue_cmd *event_qcmd = NULL;
+	struct msm_cpp_frame_info_t *processed_frame = NULL;
+	struct msm_device_queue *queue = &cpp_dev->processing_q;
+	struct msm_buf_mngr_info buff_mgr_info;
+	int rc = 0;
+
+	frame_qcmd = msm_dequeue(queue, list_frame);
+	if (frame_qcmd) {
+		processed_frame = frame_qcmd->command;
+		do_gettimeofday(&(processed_frame->out_time));
+		kfree(frame_qcmd);
+		event_qcmd = kzalloc(sizeof(struct msm_queue_cmd), GFP_ATOMIC);
+		if (!event_qcmd) {
+			pr_err("Insufficient memory. return");
+			return -ENOMEM;
+		}
+		atomic_set(&event_qcmd->on_heap, 1);
+		event_qcmd->command = processed_frame;
+		CPP_DBG("fid %d\n", processed_frame->frame_id);
+		msm_enqueue(&cpp_dev->eventData_q, &event_qcmd->list_eventdata);
+		if (!processed_frame->output_buffer_info[0].processed_divert) {
+			memset(&buff_mgr_info, 0 ,
+				sizeof(struct msm_buf_mngr_info));
+			buff_mgr_info.session_id =
+				((processed_frame->identity >> 16) & 0xFFFF);
+			buff_mgr_info.stream_id =
+				(processed_frame->identity & 0xFFFF);
+			buff_mgr_info.frame_id = processed_frame->frame_id;
+			buff_mgr_info.timestamp.tv_sec = 0;
+			buff_mgr_info.timestamp.tv_usec = 0;
+			buff_mgr_info.index =
+				processed_frame->output_buffer_info[0].index;
+			rc = msm_cpp_buffer_ops(cpp_dev,
+				VIDIOC_MSM_BUF_MNGR_BUF_DONE,
+				&buff_mgr_info);
+			if (rc < 0) {
+				pr_err("error putting buffer\n");
+				rc = -EINVAL;
+			}
+		}
+
+		if (processed_frame->duplicate_output  &&
+			!processed_frame->
+				output_buffer_info[1].processed_divert) {
+			memset(&buff_mgr_info, 0 ,
+				sizeof(struct msm_buf_mngr_info));
+			buff_mgr_info.session_id =
+			((processed_frame->duplicate_identity >> 16) & 0xFFFF);
+			buff_mgr_info.stream_id =
+				(processed_frame->duplicate_identity & 0xFFFF);
+			buff_mgr_info.frame_id = processed_frame->frame_id;
+			buff_mgr_info.timestamp.tv_sec = 0;
+			buff_mgr_info.timestamp.tv_usec = 0;
+			buff_mgr_info.index =
+				processed_frame->output_buffer_info[1].index;
+			rc = msm_cpp_buffer_ops(cpp_dev,
+				VIDIOC_MSM_BUF_MNGR_BUF_DONE,
+					&buff_mgr_info);
+			if (rc < 0) {
+				pr_err("error putting buffer\n");
+				rc = -EINVAL;
+			}
+		}
+		v4l2_evt.id = processed_frame->inst_id;
+		v4l2_evt.type = V4L2_EVENT_CPP_FRAME_DONE;
+		v4l2_event_queue(cpp_dev->msm_sd.sd.devnode, &v4l2_evt);
+	}
+	return rc;
+}
+
 #if MSM_CPP_DUMP_FRM_CMD
 static int msm_cpp_dump_frame_cmd(uint32_t *cmd, int32_t len)
 {
@@ -1171,7 +1245,7 @@ static void msm_cpp_do_timeout_work(struct work_struct *work)
 	if (cpp_timer.data.cpp_dev->timeout_trial_cnt >=
 		MSM_CPP_MAX_TIMEOUT_TRIAL) {
 		pr_info("Max trial reached\n");
-		msm_cpp_notify_frame_done(cpp_timer.data.cpp_dev);
+		msm_cpp_notify_frame_done_timeout(cpp_timer.data.cpp_dev); 
 		cpp_timer.data.cpp_dev->timeout_trial_cnt = 0;
 		return;
 	}

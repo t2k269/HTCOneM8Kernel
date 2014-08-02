@@ -742,6 +742,7 @@ static int htc_battery_set_charging(int ctl)
 	return rc;
 }
 
+#ifdef CONFIG_ARCH_MSM8974
 struct mutex iusb_limit_lock;
 static void set_limit_input_current_with_reason(bool enable, int reason)
 {
@@ -754,16 +755,16 @@ static void set_limit_input_current_with_reason(bool enable, int reason)
 		else
 			iusb_limit_reason &= ~reason;
 
-		if (prev_iusb_limit_reason ^ iusb_limit_reason) {
-			if (!!prev_iusb_limit_reason != !!iusb_limit_reason &&
-					htc_batt_info.icharger &&
+		if (prev_iusb_limit_reason != iusb_limit_reason) {
+			if (htc_batt_info.icharger &&
 					htc_batt_info.icharger->set_limit_input_current) {
-				htc_batt_info.icharger->set_limit_input_current(!!iusb_limit_reason);
+				htc_batt_info.icharger->set_limit_input_current(!!iusb_limit_reason, iusb_limit_reason);
 			}
 		}
 	}
 	mutex_unlock(&iusb_limit_lock);
 }
+#endif
 
 struct mutex chg_limit_lock;
 static void set_limit_charge_with_reason(bool enable, int reason)
@@ -860,11 +861,19 @@ static void __context_event_handler(enum batt_context_event event)
 
 	switch (event) {
 	case EVENT_TALK_START:
+#ifdef CONFIG_ARCH_MSM8974
+		set_limit_input_current_with_reason(true, HTC_BATT_CHG_LIMIT_BIT_TALK);
+#else
 		set_limit_charge_with_reason(true, HTC_BATT_CHG_LIMIT_BIT_TALK);
+#endif
 		suspend_highfreq_check_reason |= SUSPEND_HIGHFREQ_CHECK_BIT_TALK;
 		break;
 	case EVENT_TALK_STOP:
+#ifdef CONFIG_ARCH_MSM8974
+		set_limit_input_current_with_reason(false, HTC_BATT_CHG_LIMIT_BIT_TALK);
+#else
 		set_limit_charge_with_reason(false, HTC_BATT_CHG_LIMIT_BIT_TALK);
+#endif
 		suspend_highfreq_check_reason &= ~SUSPEND_HIGHFREQ_CHECK_BIT_TALK;
 		break;
 	case EVENT_NAVIGATION_START:
@@ -1947,22 +1956,28 @@ static void batt_update_limited_charge(void)
 	}
 }
 
+#ifdef CONFIG_ARCH_MSM8974
 static void batt_update_limited_input_current(void)
 {
 	if (htc_batt_info.state & STATE_EARLY_SUSPEND) {
 		
-		if ((iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_KDDI) &&
+		if(iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_TALK) {
+			
+		} else if ((iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_KDDI) &&
 			htc_batt_info.rep.charging_source > HTC_PWR_SOURCE_TYPE_BATT) {
 			set_limit_input_current_with_reason(false, HTC_BATT_CHG_LIMIT_BIT_KDDI);
 		}
 	} else {
 		
-		if ((!(iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_KDDI) &&
+		if(iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_TALK) {
+			
+		} else if ((!(iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_KDDI) &&
 			htc_batt_info.rep.charging_source > HTC_PWR_SOURCE_TYPE_BATT)) {
 			set_limit_input_current_with_reason(true, HTC_BATT_CHG_LIMIT_BIT_KDDI);
 		}
 	}
 }
+#endif
 
 static void sw_safety_timer_check(unsigned long time_since_last_update_ms)
 {
@@ -2101,8 +2116,9 @@ static void batt_worker(struct work_struct *work)
 
 	
 	batt_update_limited_charge();
+#ifdef CONFIG_ARCH_MSM8974
 	batt_update_limited_input_current();
-
+#endif
 	
 	batt_check_overload(time_since_last_update_ms);
 
@@ -2881,7 +2897,9 @@ static int __init htc_battery_init(void)
 	mutex_init(&htc_batt_timer.schedule_lock);
 	mutex_init(&cable_notifier_lock);
 	mutex_init(&chg_limit_lock);
+#ifdef CONFIG_ARCH_MSM8974
 	mutex_init(&iusb_limit_lock);
+#endif
 	mutex_init(&context_event_handler_lock);
 #ifdef CONFIG_HTC_BATT_ALARM
 	mutex_init(&batt_set_alarm_lock);

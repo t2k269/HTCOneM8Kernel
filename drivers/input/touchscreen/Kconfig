@@ -503,6 +503,7 @@ config TOUCHSCREEN_HIMAX
 
 
 
+
 config TOUCHSCREEN_HIMAX_ESD_EN
         tristate "HIMAX HM852xD ESD recovery function"
 		depends on I2C

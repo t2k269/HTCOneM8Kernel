@@ -274,6 +274,10 @@
 #define POWER_BANK_WA_STEP3				(1<<2)
 #define POWER_BANK_WA_STEP4				(1<<3)
 
+static int iusb_limit_reason;
+#define HTC_BATT_CHG_LIMIT_BIT_TALK		(1)
+#define HTC_BATT_CHG_LIMIT_BIT_KDDI		(1<<3)
+
 #define DWC3_DCP	2
 
 #ifdef CONFIG_ARCH_DUMMY
@@ -594,13 +598,16 @@ static int usb_target_ma;
 static int is_vin_min_detected;
 static int usb_wall_threshold_ma;
 static unsigned int chg_limit_current; 
-static unsigned int iusb_limit_intput_current;
+static int iusb_limit_intput_current;
 static bool iusb_limit_enable = false;
+static bool usbin_double_check_enable = false;
 static int thermal_mitigation;
 static void qpnp_chg_set_appropriate_battery_current(struct qpnp_chg_chip *chip);
 #define PM8941_CHG_I_MIN_MA		225
 #define PM8941_USB_I_LIMIT_MA		1100 
+#define PM8941_PHONE_I_LIMIT_MA		700 
 #define QPNP_CHG_VDDMAX_MIN		3400
+#define CHG_USBIN_UVD_THR_UV		4050000 
 
 #define HYSTERISIS_DECIDEGC 20
 #define READJUST_VDDMAX_THR_MA		(-50)
@@ -1589,6 +1596,16 @@ qpnp_chg_coarse_det_usb_irq_handler(int irq, void *_chip)
 			msecs_to_jiffies(1000));
 
 	return IRQ_HANDLED;
+}
+
+static void
+aicl_reset_all_parameters(void)
+{
+	usb_target_ma = 0;
+	is_aicl_worker_enabled = false;
+	is_vin_min_detected = 0;
+	if (the_chip)
+		the_chip->retry_aicl_cnt = 0;
 }
 
 static void
@@ -2827,7 +2844,7 @@ static void decrease_usb_ma_value(int *value)
 
 	if (value) {
 		i = find_usb_ma_value(*value);
-		if (i > 0)
+		if (i > 1)
 			i--;
 		if (i >= 0)
 			*value = usb_ma_table[i].usb_ma;
@@ -2861,21 +2878,19 @@ static void vin_collapse_check_worker(struct work_struct *work)
 
 	if (qpnp_chg_is_usb_chg_plugged_in(chip) &&
 			usb_target_ma >= usb_wall_threshold_ma) {
+		usbin_double_check_enable = true;
 		
 		decrease_usb_ma_value(&usb_target_ma);
 		
 		__pm8941_charger_vbus_draw(usb_wall_threshold_ma);
-		pr_info("usb_now=%d, usb_target=%d, is_vin_min_detected=%d\n",
+		pr_info("usb_now=%d, usb_target=%d, is_vin_min_detected=%d, usbin_check=%d\n",
 			usb_wall_threshold_ma, usb_target_ma,
-			is_vin_min_detected);
+			is_vin_min_detected, usbin_double_check_enable);
 		queue_delayed_work(chip->aicl_check_wq, &chip->aicl_check_work,
 			msecs_to_jiffies(AICL_CHECK_RAMP_MS));
 	} else {
 		
-		chip->retry_aicl_cnt = 0;
-		usb_target_ma = 0;
-		is_aicl_worker_enabled = false;
-		is_vin_min_detected = 0;
+		aicl_reset_all_parameters();
 		cable_detection_vbus_irq_handler();
 	}
 }
@@ -3209,7 +3224,7 @@ aicl_check_worker(struct work_struct *work)
 				struct qpnp_chg_chip, aicl_check_work);
 	unsigned long time_since_last_update_ms, cur_jiffies;
 	struct qpnp_vadc_result result;
-	int usb_ma, vchg_loop, usbin = 0, rc = 0;
+	int usb_ma, vchg_loop, usbin = 0, vchg = 0, rc = 0;
 
 	usb_ma = qpnp_chg_usb_iusbmax_get(chip);
 	vchg_loop = get_prop_vchg_loop(chip);
@@ -3222,14 +3237,20 @@ aicl_check_worker(struct work_struct *work)
 
 		if (aicl_timer.total_time_ms >= VIN_MIN_DETECT_DURATION_MS) {
 			is_vin_min_detected = 0;
+			usbin_double_check_enable = false;
+			rc = qpnp_vadc_read(chip->vadc_dev, VCHG_SNS, &result);
+			if (rc)
+				pr_err("AICL dec: error reading VCHG channel=%d, rc=%d\n",
+							VCHG_SNS, rc);
+			vchg = (int)result.physical;
 			rc = qpnp_vadc_read(chip->vadc_dev, USBIN, &result);
 			if (rc)
-				pr_err("AICL dec: error reading USBIN channel = %d, rc = %d\n",
+				pr_err("AICL dec: error reading USBIN channel=%d, rc=%d\n",
 							USBIN, rc);
 			usbin = (int)result.physical;
 			pr_info("AICL: is_vin_min_detected=%d, total_time_ms=%ld, usb_ma=%d, "
-					"usbin=%d\n",
-					is_vin_min_detected, aicl_timer.total_time_ms, usb_ma, usbin);
+					"usbin=%d, vchg=%d\n",
+					is_vin_min_detected, aicl_timer.total_time_ms, usb_ma, usbin, vchg);
 
 			if (htc_battery_is_support_qc20() &&
 					usbin > QC20_9_VOLT_CHECK &&
@@ -3237,7 +3258,7 @@ aicl_check_worker(struct work_struct *work)
 					!is_usb_target_ma_changed_by_qc20) {
 				usb_target_ma = USB_MA_1600;
 				is_usb_target_ma_changed_by_qc20 = true;
-				qpnp_chg_ibatmax_set(chip, chip->qc20_ibatmax);
+				qpnp_chg_set_appropriate_battery_current(chip);
 				qpnp_chg_vinmin_set(chip, QC20_VIN_MIN_MV);
 			}
 
@@ -3245,9 +3266,11 @@ aicl_check_worker(struct work_struct *work)
 
 			if (usb_ma >= usb_target_ma) {
 				is_aicl_worker_enabled = false;
+
 				
 				if(iusb_limit_enable)
-					pm8941_limit_input_current(iusb_limit_enable);
+					pm8941_limit_input_current(
+						iusb_limit_enable, iusb_limit_reason);
 
 				pr_info("AICL: finish! usb_target_ma=%d, aicl_worker=%d\n",
 						usb_target_ma, is_aicl_worker_enabled);
@@ -3269,9 +3292,24 @@ aicl_check_worker(struct work_struct *work)
 		aicl_timer.total_time_ms = 0;
 		is_aicl_worker_enabled = false;
 		qpnp_chg_vinmin_set(chip, chip->min_voltage_mv);
-		pr_info("AICL: exit because cable is out! USB=%d, DC=%d, aicl_worker=%d\n",
+		rc = qpnp_vadc_read(chip->vadc_dev, USBIN, &result);
+		usbin = (int)result.physical;
+
+		pr_info("AICL: exit because cable is out! USB=%d, DC=%d, aicl_worker=%d, "
+				"usbin=%d, usbin_check=%d\n",
 				qpnp_chg_is_usb_chg_plugged_in(chip), qpnp_chg_is_dc_chg_plugged_in(chip),
-				is_aicl_worker_enabled);
+				is_aicl_worker_enabled, usbin, usbin_double_check_enable);
+		if (rc) {
+			pr_err("AICL: error reading USBIN channel = %d, rc = %d\n", USBIN, rc);
+			return;
+		}
+		
+		if (usbin_double_check_enable
+				&& usbin <  CHG_USBIN_UVD_THR_UV) {
+			usbin_double_check_enable = false;
+			aicl_reset_all_parameters();
+			cable_detection_vbus_irq_handler();
+		}
 		return;
 	}
 
@@ -3402,14 +3440,12 @@ static void handle_usb_present_change(struct qpnp_chg_chip *chip,
 			chip->prev_usb_max_ma = -EINVAL;
 			chip->delta_vddmax_mv = 0;
 			qpnp_chg_set_appropriate_vddmax(chip);
-			chip->retry_aicl_cnt = 0;
 			hsml_target_ma = 0;
-			usb_target_ma = 0;
-			is_aicl_worker_enabled = false;
-			is_vin_min_detected = 0;
+			aicl_reset_all_parameters();
 			is_batt_full = false;
 			is_batt_full_eoc_stop = false;
 			is_usb_target_ma_changed_by_qc20 = false;
+			usbin_double_check_enable = false;
 			qpnp_chg_vinmin_set(chip, chip->min_voltage_mv);
 			if (chip->enable_qct_adjust_vddmax
 					&& delayed_work_pending(&chip->readjust_vddmax_configure_work))
@@ -3433,6 +3469,11 @@ static void handle_usb_present_change(struct qpnp_chg_chip *chip,
 
 		queue_delayed_work(chip->aicl_check_wq, &chip->aicl_check_work,
 			msecs_to_jiffies(AICL_CHECK_WAIT_PERIOD_MS));
+	} else if (usb_present && (!usb_target_ma)) {
+		
+		if(iusb_limit_enable)
+			pm8941_limit_input_current(iusb_limit_enable, iusb_limit_reason);
+			
 	}
 
 	if(chip->ext_ovpfet_gpio && !usb_present)
@@ -4312,13 +4353,15 @@ static void dump_all(int more)
 	
 	printk(KERN_INFO "[BATT][CHG] V=%d mV, I=%d mA, T=%d C, SoC=%d%%,id=%d mV,"
 			"H=%d,P=%d,CHG=%d,S=%d,FSM=%d,CHGR_STS=%X,BUCK_STS=%X,BATIF_STS=%X,"
-			"AC=%d,USB=%d,DC=%d,iusb_ma=%d,OVP=%d,UVP=%d,TM=%d,usbin=%d,vchg=%d,"
+			"AC=%d,USB=%d,DC=%d,iusb_ma=%d,usb_target_ma=%d,pb_drop_usb_ma=%d,"
+			"OVP=%d,UVP=%d,TM=%d,usbin=%d,vchg=%d,"
 			"eoc_count/by_curr=%d/%d,is_ac_ST=%d,batfet_dis=0x%x,pwrsrc_dis=0x%x,is_full=%d,"
 			"temp_fault=%d,bat_is_warm/cool=%d/%d,flag=%d%d%d%d,vin_min=%d,host=%d,"
 			"hsml_ma=%d\n",
 			vbat_mv, ibat_ma, tbat_deg, soc, id_mv,
 			health, present, charger_type, status, fsm, chgr_sts, buck_sts, bat_if_sts,
-			ac_online, usb_online, dc_online, iusb_ma, ovp, uvp, thermal_mitigation, usbin, vchg,
+			ac_online, usb_online, dc_online, iusb_ma, usb_target_ma, the_chip->power_bank_drop_usb_ma,
+			ovp, uvp, thermal_mitigation, usbin, vchg,
 			eoc_count, eoc_count_by_curr, is_ac_safety_timeout,
 			batt_charging_disabled, pwrsrc_disabled, is_batt_full, temp_fault,
 			the_chip->bat_is_warm, the_chip->bat_is_cool,
@@ -4691,27 +4734,48 @@ int pm8941_limit_charge_enable(bool enable)
 }
 #endif
 
-	
-int pm8941_limit_input_current(bool enable)
+int pm8941_limit_input_current(bool enable, int reason)
 {
 	int rc = 0;
+	int power_bank_iusb_ma;
 	iusb_limit_enable = enable;
+	iusb_limit_reason = reason;
 	pr_debug("limit_input_current=%d, usb_target_ma:%d\n", enable, usb_target_ma);
+
 	if (!the_chip) {
 		pr_err("called before init\n");
 		return -EINVAL;
 	}
 
 	if(!is_aicl_worker_enabled && is_ac_online()) {
-		if (enable)
-			iusb_limit_intput_current = min(usb_target_ma, PM8941_USB_I_LIMIT_MA);
-		else
+		
+		if(usb_target_ma)
+			
 			iusb_limit_intput_current = usb_target_ma;
+		else {
+			
+			power_bank_iusb_ma = the_chip->power_bank_drop_usb_ma;
+			decrease_usb_ma_value(&power_bank_iusb_ma);
+			iusb_limit_intput_current = power_bank_iusb_ma;
+		}
+
+		if (enable) {
+			
+			if (iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_TALK)
+				iusb_limit_intput_current =
+					min(iusb_limit_intput_current, PM8941_PHONE_I_LIMIT_MA);
+			else if (iusb_limit_reason & HTC_BATT_CHG_LIMIT_BIT_KDDI)
+				iusb_limit_intput_current =
+					min(iusb_limit_intput_current, PM8941_USB_I_LIMIT_MA);
+		}
 
 		if(iusb_limit_intput_current == 0)
 			iusb_limit_intput_current = USB_MA_100;
 
-		pr_info("set iusb_max to %d for KDDI\n", iusb_limit_intput_current);
+		pr_info("Set iusb_max to %dmA due to reason=0x%X, "
+				"usb_target_ma=%d, pb_drop_usb_ma=%d\n",
+				iusb_limit_intput_current, iusb_limit_reason,
+				usb_target_ma, the_chip->power_bank_drop_usb_ma);
 
 		rc = qpnp_chg_iusbmax_set(the_chip, iusb_limit_intput_current);
 		if (rc) {

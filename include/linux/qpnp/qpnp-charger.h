@@ -69,7 +69,7 @@ int pm8941_limit_charge_enable(int chg_limit_reason,
 #else
 int pm8941_limit_charge_enable(bool enable);
 #endif
-int pm8941_limit_input_current(bool enable);
+int pm8941_limit_input_current(bool enable, int reason);
 int pm8941_is_chg_safety_timer_timeout(int *result);
 int pm8941_get_usb_temperature(int *result);
 #endif
@@ -202,7 +202,7 @@ static inline int pm8941_limit_charge_enable(bool enable)
 	return -ENXIO;
 }
 #endif
-static int pm8941_limit_input_current(bool enable);
+static int pm8941_limit_input_current(bool enable, int reason);
 {
 	return -ENXIO;
 }

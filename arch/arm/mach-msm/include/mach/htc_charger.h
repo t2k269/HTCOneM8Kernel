@@ -88,7 +88,7 @@ struct htc_charger {
 #else
 	int (*set_limit_charge_enable)(bool enable);
 #endif
-	int (*set_limit_input_current)(bool enable);
+	int (*set_limit_input_current)(bool enable, int reason);
 	int (*set_chg_iusbmax)(int val);
 	int (*set_chg_vin_min)(int val);
 	int (*toggle_charger)(void);
