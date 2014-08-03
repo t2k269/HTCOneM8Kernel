@@ -3402,7 +3402,7 @@ static void batfet_open_work(struct work_struct *work)
 {
 	int i;
 	int rc;
-	int result_ua;
+	int result_ua = 0;
 	u8 orig_delay, sample_delay;
 	struct qpnp_bms_chip *chip = container_of(work,
 				struct qpnp_bms_chip,
