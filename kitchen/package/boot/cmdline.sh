@@ -56,17 +56,5 @@ case $val3 in
 
 esac
 
-#set vibration
-val4=$(grep "item.0.4" /tmp/aroma/mods.prop | cut -d '=' -f2)
 
-case $val4 in
-	0)
-	  vib_rd="vib_rd=0"
-	  ;;
-	1)
-	  vib_rd="vib_rd=1"
-	  ;;
-esac
-
-
-echo "cmdline = console=ttyHSL0,115200,n8 androidboot.hardware=qcom user_debug=31 ehci-hcd.park=3" $vib_rd $vdd_uv $cpu_oc  >> /tmp/bootimg.cfg
+echo "cmdline = console=ttyHSL0,115200,n8 androidboot.hardware=qcom user_debug=31 ehci-hcd.park=3" $vdd_uv $cpu_oc  >> /tmp/bootimg.cfg

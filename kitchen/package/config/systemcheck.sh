@@ -1,9 +1,9 @@
 #!/sbin/sh
 
 if [ ! -f /system/xbin/busybox ]; then
-
    cp /tmp/busybox /system/xbin/busybox; 
-   chmod 777 /system/xbin/busybox;
+   chmod 755 /system/xbin/busybox;
+   /system/xbin/busybox --install -s /system/xbin
 fi
 
 if [ ! -d /system/etc/init.d ]; then
@@ -14,4 +14,6 @@ if [ ! -d /system/etc/init.d ]; then
 fi
 
 ln -s /system/lib/modules/pronto/pronto_wlan.ko /system/lib/modules/wlan.ko
+
+
 

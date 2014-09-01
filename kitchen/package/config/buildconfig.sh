@@ -41,7 +41,7 @@ if [ $SP == 1 ]; then
   SU=0
   SD=0
   SP=16
-fi  
+fi
 
 if [ $WG = 1 ]; then
   echo S2W=0 >> $CONFIGFILE;
@@ -49,7 +49,6 @@ else
   S2W=$(( SL + SR + SU + SD + SP ))
   echo S2W=$S2W >> $CONFIGFILE;
 fi
-
 echo SP2W=14789 >> $CONFIGFILE;
 
 #DT2W
@@ -137,6 +136,15 @@ else
   echo "MAXSCROFF=1" >> $CONFIGFILE;
 fi
 
+#Reduce button vibration
+SVIB=`grep "item.0.4 /tmp/aroma/mods.prop | cut -d '=' -f2`
+echo -e "\n\n##### Button Vibration #####\n# Values: 0 to 3100" >> $CONFIGFILE
+if [ $SVIB = 1 ]; then
+  echo "SVIB=2500" >> $CONFIGFILE;
+else
+  echo "SVIB=3100" >> $CONFIGFILE;
+fi
+
 #Graphics Boost
 GBOOST=`grep "item.0.5" /tmp/aroma/mods.prop | cut -d '=' -f2`
 echo -e "\n\n##### Graphics Boost Settings ######\n# 1 to enable\n# 0 to disable\n" >> $CONFIGFILE
@@ -157,7 +165,7 @@ fi
 
 #GPU Freq
 GPU_FREQ=`grep selected.1 /tmp/aroma/gpu.prop | cut -d '=' -f2`
-echo -e "\n\n##### GPU Settings ######\n#values:  410 450 477 491 504 531 558 585\n#These cannot be applied if you selected stock GPU frequency during installation\n" >> $CONFIGFILE
+echo -e "\n\n##### GPU Settings ######\n#values:  389 462 578\n#These cannot be applied if you selected stock GPU frequency during installation\n" >> $CONFIGFILE
 if [ $GPU_FREQ = 1 ]; then
   echo "GPU_FREQ=578" >> $CONFIGFILE;
 elif [ $GPU_FREQ = 2 ]; then
@@ -175,6 +183,33 @@ if [ $GPU_GOV = 2 ]; then
 else
   echo "GPU_GOV=1" >> $CONFIGFILE;
 fi
+
+#reinstall options
+echo -e "\n\n\n\n##### Reinstall Options #####" >> $CONFIGFILE
+echo -e "# These settings are only applied if you run the express installer" >> $CONFIGFILE
+
+#Maximum CPU freqs
+CPU0=$(cat /tmp/aroma/freq.prop | cut -d '=' -f2)
+echo -e "\n\n##### Max CPU Frequncies #####" >> $CONFIGFILE
+echo -e "# 1=1728MHz 2=1958MHz" >> $CONFIGFILE
+echo -e "# 3=2266MHz 4=2458MHz" >> $CONFIGFILE
+echo -e "# 5=2573MHz 6=2650MHz" >> $CONFIGFILE
+echo -e "# 7=2726MHz 8=2803MHz\n" >> $CONFIGFILE
+
+echo "CPU0=$CPU0" >> $CONFIGFILE;
+
+#set undervolting
+UV=$(grep selected.2 /tmp/aroma/cpu.prop | cut -d '=' -f2)
+echo -e "\n\n##### Undervolt Settings #####" >> $CONFIGFILE
+echo -e "# 1=stock 2=-15mV 3=-30mV 4=-45mV\n" >> $CONFIGFILE
+echo "UV=$UV" >> $CONFIGFILE;
+
+#thermal throttling
+THERM=$(grep selected.3 /tmp/aroma/cpu.prop | cut -d '=' -f2)
+echo -e "\n\n##### Thermal Settings #####" >> $CONFIGFILE
+echo -e "# 1=elementalx (default) 2=stock (cooler)\n" >> $CONFIGFILE
+echo "THERM=$THERM" >> $CONFIGFILE;
+
 
 echo -e "\n\n##############################" >> $CONFIGFILE
 #END

@@ -30,11 +30,11 @@
 #
 # * AROMA Temporary Dir = /tmp/aroma/
 
-ini_set("rom_name",             "ElementalX");
-ini_set("rom_version",          "0.18");
-ini_set("rom_author",           "flar2");
+ini_set("rom_name",             "ElementalX with SP2W");
+ini_set("rom_version",          "1.02 (SP2W 1.1)");
+ini_set("rom_author",           "flar2 & t2k269");
 ini_set("rom_device",           "HTC One m8");
-ini_set("rom_date",             "May 27, 2014");
+ini_set("rom_date",             "Sep 1, 2014");
 
 ini_set("force_colorspace","rgba");
 
@@ -137,7 +137,7 @@ checkbox(
   "Sweep left","",0,
   "Sweep up","",0,
   "Sweep down","",0,
-  "Sweep Pattern","",1,
+  "Sweep pattern","",1,
   "Double tap","",0,
 
   "Other Options","",2,
@@ -160,7 +160,7 @@ checkbox(
   "Enable USB fastcharge","",1,
   "Disable fsync","Faster fileystem performance, but risk of data loss",0,
   "Disable max screen off frequency","",0,
-  "Reduce button vibration","",1,
+  "Reduce button vibration","",0,
   "Enable gboost","Enhanced gaming performance",1,
   "Disable magnetic cover sensor","",0
 );

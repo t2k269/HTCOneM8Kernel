@@ -13,6 +13,10 @@ echo $(date) >> $ELEX_LOGFILE
 PVS="`cat /sys/module/clock_krait_8974/parameters/pvs_number`"
 echo PVS: $PVS >> $ELEX_LOGFILE;
 
+SP2W="`grep SP2W $ELEX_CONF | cut -d '=' -f2`"
+echo $SP2W > /sys/android_touch/s2w_pattern
+echo Sweep2wake pattern $SP2W >> $ELEX_LOGFILE;
+
 #Set Wake Gestures
 if [ "`grep WG=1 $ELEX_CONF`" ]; then
   echo 1 > /sys/android_touch/wake_gestures
@@ -26,10 +30,6 @@ fi
 S2W="`grep S2W $ELEX_CONF | cut -d '=' -f2`"
   echo $S2W > /sys/android_touch/sweep2wake
   echo Sweep2wake $S2W >> $ELEX_LOGFILE;
-
-SP2W="`grep SP2W $ELEX_CONF | cut -d '=' -f2`"
-  echo $SP2W > /sys/android_touch/s2w_pattern
-  echo Sweep2wake pattern $SP2W >> $ELEX_LOGFILE;
 
 #Set Doubletap2wake
 if [ "`grep DT2W=1 $ELEX_CONF`" ]; then
@@ -105,6 +105,11 @@ else
   echo Max screen off frequency disabled >> $ELEX_LOGFILE;
 fi
 
+#Set vibration
+SVIB=`grep "SVIB" $ELEX_CONF | cut -d '=' -f2`
+echo $SVIB > /sys/class/timed_output/vibrator/voltage_level;
+echo Vibration strength\: $SVIB >> $ELEX_LOGFILE;
+
 #gboost settings
 if [ "`grep GBOOST=0 $ELEX_CONF`" ]; then
   echo 0 > /sys/devices/system/cpu/cpufreq/ondemand/gboost;
@@ -139,5 +144,8 @@ fi
 #fstrim
 fstrim -v /cache | tee -a $ELEX_LOGFILE;
 fstrim -v /data | tee -a $ELEX_LOGFILE;
+
+#update saved config
+cp /system/etc/elementalx.conf /sdcard/.elementalx.backup
 
 exit 0

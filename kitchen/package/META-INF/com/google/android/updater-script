@@ -97,8 +97,8 @@ delete("/system/etc/init.d/99zram.sh");
 delete("/system/lib/modules/cpufreq_limit.ko");
 delete("/system/lib/modules/wp_mod.ko");
 delete("/system/lib/modules/s2w_mod.ko");
+delete("/system/lib/modules/s2s_mod.ko");
 delete("/system/lib/modules/wlan.ko");
-
 
 ui_print("Installing system files");
 package_extract_dir("system", "/system");
@@ -122,6 +122,9 @@ set_perm_recursive(0, 2000, 0755, 0755, "/system/etc/init.d/99elementalx");
 set_perm_recursive(0, 2000, 0755, 0755, "/system/bin/fstrim");
 set_perm_recursive(0, 0, 0755, 0644, "/system/lib/modules");
 set_perm_recursive(0, 0, 0644, 0644, "/system/etc/thermal-engine.conf");
+set_perm_recursive(0, 2000, 0777, 0777, "/system/bin/mpdecision");
+set_perm_recursive(0, 2000, 0777, 0777, "/system/bin/pnpmgr");
+
 
 set_perm(0, 0, 0777, "/tmp/buildconfig.sh");
 run_program("/tmp/buildconfig.sh");
