@@ -1177,6 +1177,11 @@ static int active_set(struct device *dev,struct device_attribute *attr,const cha
 		I("%s: Any_Motion && power_key_pressed\n", __func__);
 		return count;
 	}
+
+	if ((sensors_id == Proximity) && (enabled == 0) && proximity_flag) {
+		enabled = 1;
+	}
+
 	if ((sensors_id == Proximity) && (enabled == 0)) {
 		rc = CWMCU_i2c_read(mcu_data, CW_I2C_REG_SENSORS_CALIBRATOR_DEBUG_PROXIMITY, data8, 8);
 		I("%s: AUtoK: Threshold = %d, SADC = %d, CompensationValue = %d\n", __func__, data8[5], data8[4], data8[6]);
