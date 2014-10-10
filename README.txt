@@ -1,0 +1,13 @@
+How to build this kernel
+- git clone https://github.com/t2k269/HTCOneM8Kernel.git
+- cd HTCOneM8Kernel
+- git checkout env-gpe-4.4.4
+- git submodule init
+- git submodule update
+- cd source
+- make clean
+- make elementalx_defconfig
+- make -j2
+- cd ../kitchen
+- ./build.sh
+- # the flashable zip file is here now
