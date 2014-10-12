@@ -1,23 +1,15 @@
-set_progress(0.0);
-ui_print("");
-ui_print("Installing new kernel...");
-
-set_progress(0.1);
-
-ui_print("Customizing Kernel");
-package_extract_dir("boot", "/tmp");
-set_perm(0, 0, 0777, "/tmp/cmdline.sh");
-set_perm(0, 0, 0777, "/tmp/abootimg");
-
-run_program("/tmp/cmdline.sh");
-run_program("/tmp/abootimg", "-u", "/tmp/boot.img", "-f", "/tmp/bootimg.cfg");
-
-set_progress(0.8);
-
-ui_print("Installing Kernel");
-run_program("/tmp/busybox", "dd", "if=/tmp/boot.img", "of=/dev/block/mmcblk0p42");
-
-ui_print("");
-ui_print("");
-set_progress(1.0);
-ui_print("Finished!");
+assert(getprop("ro.product.device") == "m8" || getprop("ro.build.product") == "m8" || 
+       getprop("ro.product.device") == "m8wl" || getprop("ro.build.product") == "m8wl" || 
+       getprop("ro.product.device") == "m8wlv" || getprop("ro.build.product") == "m8wlv" || 
+       getprop("ro.product.device") == "m8vzw" || getprop("ro.build.product") == "m8vzw" || 
+       getprop("ro.product.device") == "m8whl" || getprop("ro.build.product") == "m8whl" || 
+       getprop("ro.product.device") == "m8spr" || getprop("ro.build.product") == "m8spr" || abort("This package is for \"m8,m8wl,m8wlv,m8vzw,m8whl,m8spr\" devices; this is a \"" + getprop("ro.product.device") + "\"."););
+mount("ext4", "EMMC", "/dev/block/platform/msm_sdcc.1/by-name/system", "/system");
+show_progress(0.100000, 0);
+package_extract_dir("system", "/system");
+set_metadata("/system/etc/init.d/99sp2w", "uid", 0, "gid", 0, "mode", 0755, "capabilities", 0x0, "selabel", "u:object_r:system_file:s0");
+show_progress(0.100000, 0);
+unmount("/system");
+show_progress(0.100000, 0);
+package_extract_file("boot.img", "/dev/block/platform/msm_sdcc.1/by-name/boot");
+show_progress(0.700000, 0);

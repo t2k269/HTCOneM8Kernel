@@ -1,11 +1,7 @@
 #!/bin/sh
 
 $TOP/kitchen/aik/build.sh
-cp $TOP/kitchen/aik/image-new.img $TOP/kitchen/package/boot/boot.img
-
-rm -f $TOP/kitchen/package/system/lib/modules/*.ko
-
-find $TOP/source -name "*.ko" -exec cp -f {} $TOP/kitchen/package/system/lib/modules/ \;
+cp $TOP/kitchen/aik/image-new.img $TOP/kitchen/package/boot.img
 
 echo "Building flashable zip..."
 rm -f $TOP/kitchen/*.zip

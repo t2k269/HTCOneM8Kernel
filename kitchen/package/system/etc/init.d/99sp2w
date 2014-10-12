@@ -1,0 +1,6 @@
+#!/system/bin/sh
+
+echo 16 > /sys/android_touch/sweep2wake
+echo 14789 > /sys/android_touch/s2w_pattern
+echo 1 > /sys/android_touch/pocket_detect
+echo 20 > /sys/android_touch/vib_strength
