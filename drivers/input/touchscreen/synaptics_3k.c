@@ -314,6 +314,17 @@ static void sweep2wake_pwrtrigger(int wake)
 	return;
 }
 
+static void dt2w_reset_handler(void)
+{
+	struct synaptics_ts_data *ts = gl_ts;
+
+	if (ts->gpio_reset) {
+		gpio_direction_output(ts->gpio_reset, 0);
+		msleep(1);
+		gpio_direction_output(ts->gpio_reset, 1);
+	}
+}
+
 #define S2W_PATTERN_MAX_LENGTH 10
 
 // Slot locations
@@ -2578,7 +2589,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						finger_pressed &= ~BIT(i);
 						
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
-						if (scr_suspended && s2w_switch) {
+						if (scr_suspended && s2w_switch && i == 0) {
 							sweep2wake_pattern_func(x_pos[0], y_pos[0], finger_press_changed & BIT(i));
 						}
 #endif
@@ -2864,6 +2875,11 @@ static irqreturn_t synaptics_irq_thread(int irq, void *ptr)
 	if (ret < 0) {
 		i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "r", __func__);
 	} else {
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+		if (!buf) {
+			dt2w_reset_handler();
+		}
+#endif
 		if (buf & get_address_base(ts, ts->finger_func_idx, INTR_SOURCE)) {
 			if (!vk_press) {
 				synaptics_ts_finger_func(ts);
@@ -3008,20 +3024,6 @@ static int hallsensor_hover_status_handler_func(struct notifier_block *this,
 			if (ret < 0)
 				return ret;
 		}
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
-		if (scr_suspended && s2w_switch) {
-			if (unlikely(boot_mode))
-				return NOTIFY_OK;
-			disable_irq_wake(ts->client->irq);
-			synaptics_ts_suspend(ts->client);
-			if(gpio_is_valid(ts->gpio_i2c)) {
-				gpio_direction_output(ts->gpio_i2c, 1);
-				ts->i2c_to_mcu = 1;
-				printk("[TP][SensorHub] Switch touch i2c to MCU (from cover)\n");
-			}
-			touch_status(1);
-		}
-#endif
 		pr_debug("[TP] %s: cover_enable = %d.\n", __func__, ts->cover_enable);
 	}
 
