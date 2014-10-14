@@ -50,6 +50,7 @@
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 #include <linux/wakelock.h>
 #include <linux/vibtrig.h>
+#include <linux/kmod.h>
 #endif
 
 #define MAX_BUF_SIZE	256
@@ -346,6 +347,14 @@ static int s2w_last_touch_digit = 0;
 static int s2w_matched_pattern = 0;
 // The actual pattern to be matched
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
+// Dismiss keyguard or not
+static bool s2w_dismiss_keyguard = 0;
+
+static void dismiss_keyguard(void) {
+	char *argv[] = { "/system/bin/am", "start", "-a", "android.intent.action.MAIN", "-n", "org.t2k269.sp2whelper/.MainActivity", NULL};
+	char *envp[] = { "HOME=/", "PATH=/sbin:/system/sbin:/system/bin:/system/xbin", NULL };
+	call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);	
+}
 
 static void reset_sp2w(void)
 {
@@ -416,6 +425,8 @@ static void sweep2wake_pattern_func(int x, int y, bool first_press)
 						if (s2w_target_pattern[s2w_matched_pattern] == 0) {
 							// Fully matched, wake the phone and reset
 							sweep2wake_pwrtrigger(1);
+							if (s2w_dismiss_keyguard)
+								dismiss_keyguard();	
 							reset_sp2w();
 						}
 					} else {
@@ -1881,6 +1892,26 @@ static ssize_t synaptics_s2w_pattern_dump(struct device *dev,
 static DEVICE_ATTR(s2w_pattern, 0666,
 	synaptics_s2w_pattern_show, synaptics_s2w_pattern_dump);
 
+static ssize_t synaptics_s2w_dismiss_keyguard_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+	count += sprintf(buf, "%d\n", s2w_dismiss_keyguard);
+	return count;
+}
+
+static ssize_t synaptics_s2w_dismiss_keyguard_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int i;
+	sscanf(buf, "%d ", &i);
+	s2w_dismiss_keyguard = !!i;
+	return count;
+}
+
+static DEVICE_ATTR(s2w_dismiss_keyguard, 0666,
+	synaptics_s2w_dismiss_keyguard_show, synaptics_s2w_dismiss_keyguard_dump);
+
 static ssize_t synaptics_vib_strength_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -2035,6 +2066,7 @@ static int synaptics_touch_sysfs_init(void)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 		|| sysfs_create_file(android_touch_kobj, &dev_attr_sweep2wake.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_pattern.attr) ||
+		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_dismiss_keyguard.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_vib_strength.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_pocket_detect.attr)
 #endif
@@ -2100,6 +2132,7 @@ static void synaptics_touch_sysfs_remove(void)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_pattern.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_dismiss_keyguard.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_vib_strength.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_pocket_detect.attr);
 #endif
