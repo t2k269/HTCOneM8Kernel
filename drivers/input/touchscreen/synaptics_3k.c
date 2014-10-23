@@ -327,6 +327,7 @@ static void dt2w_reset_handler(void)
 }
 
 #define S2W_PATTERN_MAX_LENGTH 10
+#define S2W_MAX_SUPPORTED_FINGERS 5
 
 // Slot locations
 static int s2w_slot_locations[] = {
@@ -337,18 +338,18 @@ static int s2w_slot_locations[] = {
 static int s2w_slot_radius = 525;
 // Should vibrate with the finger is touching a slot
 static bool s2w_vibr_on_slot = true;
-// Did the finger not touch any slot after first touch
-static int s2w_first_touch_no_digit = false;
-// The last matched digit
-static int s2w_last_digit = 0;
-// The last touched digit
-static int s2w_last_touch_digit = 0;
-// The count of matched pattern
-static int s2w_matched_pattern = 0;
-// The actual pattern to be matched
-static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 // Dismiss keyguard or not
 static bool s2w_dismiss_keyguard = 0;
+// The actual pattern to be matched
+static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
+// Did the finger not touch any slot after first touch
+static bool s2w_first_touch_no_digit[S2W_MAX_SUPPORTED_FINGERS] = {false};
+// The last matched digit
+static int s2w_last_digit[S2W_MAX_SUPPORTED_FINGERS] = {0};
+// The last touched digit
+static int s2w_last_touch_digit[S2W_MAX_SUPPORTED_FINGERS] = {0};
+// The count of matched pattern (support multi-touch)
+static int s2w_matched_pattern[S2W_MAX_SUPPORTED_FINGERS] = {0};
 
 static void dismiss_keyguard(void) {
 	char *argv[] = { "/system/bin/am", "start", "-a", "android.intent.action.MAIN", "-n", "org.t2k269.sp2whelper/.MainActivity", NULL};
@@ -356,12 +357,12 @@ static void dismiss_keyguard(void) {
 	call_usermodehelper(argv[0], argv, envp, UMH_NO_WAIT);	
 }
 
-static void reset_sp2w(void)
+static void reset_sp2w(int finger)
 {
-	s2w_last_digit = 0;
-	s2w_last_touch_digit = 0;
-	s2w_first_touch_no_digit = false;
-	s2w_matched_pattern = 0;
+	s2w_last_digit[finger] = 0;
+	s2w_last_touch_digit[finger] = 0;
+	s2w_first_touch_no_digit[finger] = false;
+	s2w_matched_pattern[finger] = 0;
 }
 
 static void sweep2wake_slot_touched(bool in_pocket) {
@@ -373,7 +374,7 @@ static void sweep2wake_slot_touched(bool in_pocket) {
 	vib_trigger_event(vib_trigger, v);
 }
 							   
-static void sweep2wake_pattern_func(int x, int y, bool first_press)
+static void sweep2wake_pattern_func(int finger, int x, int y, bool first_press)
 {
 	int i;
 	int dx, dy;
@@ -389,8 +390,8 @@ static void sweep2wake_pattern_func(int x, int y, bool first_press)
 			y = ((y - 720) * 87381) >> 16;
 
 			if (first_press) {
-				reset_sp2w();
-				s2w_first_touch_no_digit = true;
+				reset_sp2w(finger);
+				s2w_first_touch_no_digit[finger] = true;
 			}
 
 			in_pocket = !check_pocket();
@@ -405,35 +406,35 @@ static void sweep2wake_pattern_func(int x, int y, bool first_press)
 				}
 			}
 
-			if (digit && digit != s2w_last_touch_digit) {
+			if (digit && digit != s2w_last_touch_digit[finger]) {
 				sweep2wake_slot_touched(in_pocket);
 			}
-			s2w_last_touch_digit = digit;
+			s2w_last_touch_digit[finger] = digit;
 
-			if (s2w_first_touch_no_digit) {
+			if (s2w_first_touch_no_digit[finger]) {
 				if (digit)
-					s2w_first_touch_no_digit = false;
+					s2w_first_touch_no_digit[finger] = false;
 				if (digit == s2w_target_pattern[0]) {
-					s2w_last_digit = digit;
-					s2w_matched_pattern = 1;
+					s2w_last_digit[finger] = digit;
+					s2w_matched_pattern[finger] = 1;
 				}
 			} else {
-				if (s2w_matched_pattern && digit && digit != s2w_last_digit) {
-					if (s2w_target_pattern[s2w_matched_pattern] == digit) {
+				if (s2w_matched_pattern[finger] && digit && digit != s2w_last_digit[finger]) {
+					if (s2w_target_pattern[s2w_matched_pattern[finger]] == digit) {
 						// Correct, next slot
-						s2w_matched_pattern++;
-						if (s2w_target_pattern[s2w_matched_pattern] == 0) {
+						s2w_matched_pattern[finger]++;
+						if (s2w_target_pattern[s2w_matched_pattern[finger]] == 0) {
 							// Fully matched, wake the phone and reset
 							sweep2wake_pwrtrigger(1);
 							if (s2w_dismiss_keyguard)
 								dismiss_keyguard();	
-							reset_sp2w();
+							reset_sp2w(finger);
 						}
 					} else {
 						// Wrong pattern, reset
-						reset_sp2w();
+						reset_sp2w(finger);
 					}
-					s2w_last_digit = digit;
+					s2w_last_digit[finger] = digit;
 				}
 			}
 		}
@@ -2622,8 +2623,8 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						finger_pressed &= ~BIT(i);
 						
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
-						if (scr_suspended && s2w_switch && i == 0) {
-							sweep2wake_pattern_func(x_pos[0], y_pos[0], finger_press_changed & BIT(i));
+						if (scr_suspended && s2w_switch && i < S2W_MAX_SUPPORTED_FINGERS) {
+							sweep2wake_pattern_func(i, x_pos[i], y_pos[i], finger_press_changed & BIT(i));
 						}
 #endif
 
