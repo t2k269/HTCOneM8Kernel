@@ -340,16 +340,18 @@ static int s2w_slot_radius = 525;
 static bool s2w_vibr_on_slot = true;
 // Dismiss keyguard or not
 static bool s2w_dismiss_keyguard = 0;
+// Enable symmetric
+static bool s2w_symmetric = true;
 // The actual pattern to be matched
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 // Did the finger not touch any slot after first touch
-static bool s2w_first_touch_no_digit[S2W_MAX_SUPPORTED_FINGERS] = {false};
+static bool s2w_first_touch_no_digit[2 * S2W_MAX_SUPPORTED_FINGERS] = {false};
 // The last matched digit
-static int s2w_last_digit[S2W_MAX_SUPPORTED_FINGERS] = {0};
+static int s2w_last_digit[2 * S2W_MAX_SUPPORTED_FINGERS] = {0};
 // The last touched digit
-static int s2w_last_touch_digit[S2W_MAX_SUPPORTED_FINGERS] = {0};
+static int s2w_last_touch_digit[2 * S2W_MAX_SUPPORTED_FINGERS] = {0};
 // The count of matched pattern (support multi-touch)
-static int s2w_matched_pattern[S2W_MAX_SUPPORTED_FINGERS] = {0};
+static int s2w_matched_pattern[2 * S2W_MAX_SUPPORTED_FINGERS] = {0};
 
 static void dismiss_keyguard(void) {
 	char *argv[] = { "/system/bin/am", "start", "-a", "android.intent.action.MAIN", "-n", "org.t2k269.sp2whelper/.MainActivity", NULL};
@@ -365,22 +367,27 @@ static void reset_sp2w(int finger)
 	s2w_matched_pattern[finger] = 0;
 }
 
-static void sweep2wake_slot_touched(bool in_pocket) {
-	int v;
+static bool sweep2wake_slot_touched(bool in_pocket) {
 	if (!s2w_vibr_on_slot || in_pocket)
-		return;
+		return false;
+	return true;
+}
+
+static void sweep2wake_vibrate(void) {
+	int v;
 	v = vib_strength - 10;
 	if (v < 10) v = 10;
 	vib_trigger_event(vib_trigger, v);
 }
 							   
-static void sweep2wake_pattern_func(int finger, int x, int y, bool first_press)
+static bool sweep2wake_pattern_func_impl(int finger, int x, int y, bool first_press)
 {
 	int i;
 	int dx, dy;
 	int digit;
 	bool in_pocket;
 	int sqr_radius;
+	bool vib = false;
 
 	if (s2w_switch & SWEEP_PATTERN) {
 		if (s2w_target_pattern[0]) {
@@ -407,7 +414,7 @@ static void sweep2wake_pattern_func(int finger, int x, int y, bool first_press)
 			}
 
 			if (digit && digit != s2w_last_touch_digit[finger]) {
-				sweep2wake_slot_touched(in_pocket);
+				vib = vib || sweep2wake_slot_touched(in_pocket);
 			}
 			s2w_last_touch_digit[finger] = digit;
 
@@ -438,6 +445,19 @@ static void sweep2wake_pattern_func(int finger, int x, int y, bool first_press)
 				}
 			}
 		}
+	}
+
+	return vib;
+}
+
+static void sweep2wake_pattern_func(int finger, int x, int y, bool first_press) {
+	bool vib = false;
+	vib = vib || sweep2wake_pattern_func_impl(finger, x, y, first_press);
+	if (s2w_symmetric) {
+		vib = vib || sweep2wake_pattern_func_impl(S2W_MAX_SUPPORTED_FINGERS + finger, 1620 - x, 2880 - y, first_press);
+	}
+	if (vib) {
+		sweep2wake_vibrate();
 	}
 }
 
