@@ -50,6 +50,7 @@
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 #include <linux/wakelock.h>
 #include <linux/vibtrig.h>
+#include <linux/kmod.h>
 #endif
 
 #define MAX_BUF_SIZE	256
@@ -117,7 +118,6 @@ struct synaptics_rmi4_f12_query_5 {
 				unsigned char ctrl30_is_present:1;
 				unsigned char ctrl31_is_present:1;
 			} __packed;
-		};
 		unsigned char data[5];
 	};
 };
@@ -4642,3 +4642,63 @@ module_exit(synaptics_ts_exit);
 
 MODULE_DESCRIPTION("Synaptics Touchscreen Driver");
 MODULE_LICENSE("GPL");
+/* drivers/input/touchscreen/synaptics_3200.c - Synaptics 3200 serious touch panel driver
+ *
+ * Copyright (C) 2011 HTC Corporation.
+ *
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+
+#include <linux/module.h>
+#include <linux/async.h>
+#include <linux/delay.h>
+#include <linux/hrtimer.h>
+#include <linux/i2c.h>
+#include <linux/input.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/synaptics_i2c_rmi.h>
+#include <linux/slab.h>
+#include <linux/rmi.h>
+#include <mach/msm_hsusb.h>
+#include <asm/gpio.h>
+#include <linux/input/mt.h>
+#include <linux/pl_sensor.h>
+#include <linux/hall_sensor.h>
+#include <mach/board.h>
+#ifdef CONFIG_OF
+#include <linux/of_gpio.h>
+#include <mach/devices_cmdline.h>
+#endif
+#if defined(CONFIG_FB)
+#include <linux/notifier.h>
+#include <linux/fb.h>
+#elif defined(CONFIG_HAS_EARLYSUSPEND)
+#include <linux/earlysuspend.h>
+#endif
+
+#if defined(CONFIG_SYNC_TOUCH_STATUS)
+#include <linux/CwMcuSensor.h>
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+#include <linux/wakelock.h>
+#include <linux/vibtrig.h>
+#endif
+
+#define MAX_BUF_SIZE	256
+#define VKEY_VER_CODE	"0x01"
+#define SYN_I2C_RETRY_TIMES (10)
+#define SYN_UPDATE_RETRY_TIMES (5)
+#define SHIFT_BITS (10)
+#define SYN_WIRELESS_DEBUG
