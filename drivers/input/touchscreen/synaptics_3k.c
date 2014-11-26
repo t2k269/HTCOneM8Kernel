@@ -342,6 +342,8 @@ static bool s2w_vibr_on_slot = true;
 static bool s2w_dismiss_keyguard = 0;
 // Enable symmetric
 static bool s2w_symmetric = true;
+// Vibrate when touch the slots
+static bool s2w_vib_on_touch = true;
 // The actual pattern to be matched
 static int s2w_target_pattern[S2W_PATTERN_MAX_LENGTH+1] = {1, 4, 7, 8, 9, 0};
 // Did the finger not touch any slot after first touch
@@ -456,7 +458,7 @@ static void sweep2wake_pattern_func(int finger, int x, int y, bool first_press) 
 	if (s2w_symmetric) {
 		vib = vib || sweep2wake_pattern_func_impl(S2W_MAX_SUPPORTED_FINGERS + finger, 1620 - x, 2880 - y, first_press);
 	}
-	if (vib) {
+	if (vib && s2w_vib_on_touch) {
 		sweep2wake_vibrate();
 	}
 }
@@ -1913,6 +1915,46 @@ static ssize_t synaptics_s2w_pattern_dump(struct device *dev,
 static DEVICE_ATTR(s2w_pattern, 0666,
 	synaptics_s2w_pattern_show, synaptics_s2w_pattern_dump);
 
+static ssize_t synaptics_s2w_symmetric_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+	count += sprintf(buf, "%d\n", s2w_symmetric);
+	return count;
+}
+
+static ssize_t synaptics_s2w_symmetric_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] >= '0' && buf[0] <= '1' && buf[1] == '\n')
+		if (s2w_symmetric != buf[0] - '0')
+			s2w_symmetric = buf[0] - '0';
+	return count;
+}
+
+static DEVICE_ATTR(s2w_symmetric, 0666,
+	synaptics_s2w_symmetric_show, synaptics_s2w_symmetric_dump);
+
+static ssize_t synaptics_s2w_vib_on_touch_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+	count += sprintf(buf, "%d\n", s2w_vib_on_touch);
+	return count;
+}
+
+static ssize_t synaptics_s2w_vib_on_touch_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	if (buf[0] >= '0' && buf[0] <= '1' && buf[1] == '\n')
+		if (s2w_vib_on_touch != buf[0] - '0')
+			s2w_vib_on_touch = buf[0] - '0';
+	return count;
+}
+
+static DEVICE_ATTR(s2w_vib_on_touch, 0666,
+	synaptics_s2w_vib_on_touch_show, synaptics_s2w_vib_on_touch_dump);
+
 static ssize_t synaptics_s2w_dismiss_keyguard_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -2087,6 +2129,8 @@ static int synaptics_touch_sysfs_init(void)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 		|| sysfs_create_file(android_touch_kobj, &dev_attr_sweep2wake.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_pattern.attr) ||
+		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_symmetric.attr) ||
+		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_vib_on_touch.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_s2w_dismiss_keyguard.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_vib_strength.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_pocket_detect.attr)
@@ -2153,6 +2197,8 @@ static void synaptics_touch_sysfs_remove(void)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_pattern.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_symmetric.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_vib_on_touch.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_dismiss_keyguard.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_vib_strength.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_pocket_detect.attr);
