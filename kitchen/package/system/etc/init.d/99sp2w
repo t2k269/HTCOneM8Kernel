@@ -2,6 +2,8 @@
 
 echo 16 > /sys/android_touch/sweep2wake
 echo 14789 > /sys/android_touch/s2w_pattern
+echo 0 > /sys/android_touch/s2w_symmetric
+echo 0 > /sys/android_touch/s2w_vib_on_touch
 echo /system/bin/am start -n org.t2k269.sp2whelper/.MainActivity > /sys/android_touch/s2w_cmdline
 echo 1 > /sys/android_touch/pocket_detect
 echo 30 > /sys/android_touch/vib_strength

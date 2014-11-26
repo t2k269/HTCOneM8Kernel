@@ -7,8 +7,8 @@ mv new.gitmodules .gitmodules
 git submodule init source
 git checkout -- .gitmodules
 
-git branch | grep m8cm11.0
+git branch | grep m8cm12.0
 if [ "$?" "!=" "0" ]; then
-	git branch m8cm11.0 remotes/origin/m8cm11.0
+	git branch m8cm12.0 remotes/origin/m8cm12.0
 fi
 git submodule update
