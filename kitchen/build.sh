@@ -10,6 +10,9 @@ cd $TOP/source
 HASH=`git rev-parse HEAD`
 HASH=${HASH:0:7}
 SUFFIX=`grep CONFIG_LOCALVERSION= $TOP/source/arch/arm/configs/cm_m8_defconfig | awk -F '"' '{print $2}'`
+if [[ "$TOOLCHAIN" != "" ]]; then
+	SUFFIX="$SUFFIX-$TOOLCHAIN"
+fi
 
 cd $TOP/kitchen/package
 zip -r -9 -q $TOP/kitchen/kernel${SUFFIX}-${HASH}.zip * 
