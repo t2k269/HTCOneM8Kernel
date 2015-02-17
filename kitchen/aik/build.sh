@@ -6,7 +6,7 @@ cd $TOP/kitchen/aik
 
 ./unpackimg.sh boot.img
 
-cd ramdisk
+cd $TOP/kitchen/aik/ramdisk
 grep sysinit init.rc > /dev/null
 if [ $? = 1 ]; then 
 	echo "Add support for init.d"
@@ -14,6 +14,12 @@ if [ $? = 1 ]; then
 	echo "service sysinit /system/bin/sysinit" >> init.rc
 	echo "    oneshot" >> init.rc 
 fi 
+
+cd $TOP/kitchen/aik/split_img
+
+cmdline=$(cat *-cmdline)
+cmdline="$cmdline androidboot.selinux=permissive"
+echo $cmdline > *-cmdline
 
 cd $TOP/kitchen/aik
 
