@@ -35,8 +35,8 @@
 
 #ifdef CONFIG_HTC_DEBUG_FOOTPRINT
 #include <mach/htc_footprint.h>
-#include <mach/clk-provider.h>
 #endif
+#include <mach/clk-provider.h>
 #include <mach/cpufreq.h>
 
 #include "acpuclock.h"
@@ -556,6 +556,10 @@ static int cpufreq_parse_dt(struct device *dev)
 
 		freq_table[i].index = i;
 		freq_table[i].frequency = f;
+
+		//elementalx
+		if (arg_cpu_oc)	
+			freq_table[14].frequency = arg_cpu_oc;
 
 		if (l2_clk) {
 			f = clk_round_rate(l2_clk, data[j++] * 1000);
