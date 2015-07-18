@@ -2130,6 +2130,21 @@ static ssize_t syn_cover_store(struct device *dev,
 		if (ts->syn_cover_wq)
 			queue_work(ts->syn_cover_wq, &ts->cover_work);
 
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+		if (scr_suspended && s2w_switch) {
+			if (unlikely(boot_mode))
+				return NOTIFY_OK;
+			dt2w_reset_handler();
+			disable_irq_wake(ts->client->irq);
+			synaptics_ts_suspend(&ts->client->dev);
+			if(gpio_is_valid(ts->gpio_i2c)) {
+				gpio_direction_output(ts->gpio_i2c, 1);
+				ts->i2c_to_mcu = 1;
+				printk("[TP][SensorHub] Switch touch i2c to MCU (from cover)\n");
+			}
+			touch_status(1);
+		}
+#endif
 		pr_info("[TP] %s: cover_enable = %d.\n", __func__, ts->cover_enable);
 	}
 
@@ -2968,6 +2983,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 				pr_info("[TP] Finger leave\n");
 		}
 
+
 		if (ts->pre_finger_data[0][0] < 2 || finger_pressed) {
 			base = ((ts->package_id < 3400) ? ((ts->finger_support + 3) / 4): 0);
 
@@ -3078,6 +3094,12 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								finger_data[i][1]);
 							input_mt_sync(ts->input_dev);
 						} else if (ts->htc_event == SYN_AND_REPORT_TYPE_B) {
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+							if (scr_suspended) {
+								finger_data[i][0] = -10;
+								finger_data[i][1] = -10; 
+							}
+#endif
 							if (ts->support_htc_event) {
 								input_report_abs(ts->input_dev, ABS_MT_AMPLITUDE,
 									finger_data[i][3] << 16 | finger_data[i][2]);
@@ -4920,11 +4942,6 @@ static int synaptics_ts_suspend(struct device *dev)
 	uint16_t reg = 0;
 	struct synaptics_ts_data *ts = dev_get_drvdata(dev);
 
-#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
-	if (!boot_mode && s2w_switch) {
-		enable_irq_wake(ts->client->irq);
-	}
-#else
 	if(ts->suspended)
 	{
 		pr_info("[TP] %s: Already suspended. Skipped. FW:%d;%d;%x;%x\n",
@@ -4937,18 +4954,24 @@ static int synaptics_ts_suspend(struct device *dev)
 		pr_info("[TP] %s: enter. FW:%d;%d;%x;%x\n",
 		__func__, ts->package_id, ts->packrat_number, syn_panel_version, ts->config_version);
 	}
-#endif
 
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	if (!boot_mode && s2w_switch) {
+		enable_irq_wake(ts->client->irq);
+	}
+#endif
 
 	if (ts->use_irq) {
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 		if (boot_mode || !s2w_switch) {
-#else
-		if (ts->irq_enabled) {
 #endif
+		if (ts->irq_enabled) {
 			disable_irq(ts->client->irq);
 			ts->irq_enabled = 0;
 		}
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+		}
+#endif
 	} else {
 		hrtimer_cancel(&ts->timer);
 		ret = cancel_work_sync(&ts->work);
@@ -5051,9 +5074,11 @@ static int synaptics_ts_suspend(struct device *dev)
 			ts->psensor_phone_enable = 1;
 
 	}
+
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	if (boot_mode || !s2w_switch) {
 #endif
+
 	if (ts->power)
 		ts->power(0);
 	else {
@@ -5086,9 +5111,6 @@ static int synaptics_ts_suspend(struct device *dev)
 			}
 		}
 	}
-#if defined(CONFIG_SYNC_TOUCH_STATUS)
-	switch_sensor_hub(ts, 1);
-#endif
 
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	}
@@ -5097,9 +5119,19 @@ static int synaptics_ts_suspend(struct device *dev)
 		if (pocket_detect && !boot_mode)
 			proximity_set(1);
 	}
+
 	scr_suspended = true;
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	if (boot_mode || !s2w_switch) {
+#endif
+#if defined(CONFIG_SYNC_TOUCH_STATUS)
+		switch_sensor_hub(ts, 1);
+#endif
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	}
+#endif
 	return 0;
 }
 
@@ -5111,16 +5143,21 @@ static int synaptics_ts_resume(struct device *dev)
 	__func__, ts->package_id, ts->packrat_number, syn_panel_version, ts->config_version);
 
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	if (boot_mode || !s2w_switch) {
+#endif
+#if defined(CONFIG_SYNC_TOUCH_STATUS)
+		switch_sensor_hub(ts, 0);
+#endif
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+	}
+#endif 
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	if (!boot_mode && s2w_switch) {
 		disable_irq_wake(ts->client->irq);
 	}
 
 	if (boot_mode || !s2w_switch) {
-#endif 
-
-
-#if defined(CONFIG_SYNC_TOUCH_STATUS)
-	switch_sensor_hub(ts, 0);
 #endif
 
 	if (ts->power) {
@@ -5139,6 +5176,7 @@ static int synaptics_ts_resume(struct device *dev)
 		if (ret < 0)
 			i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "wake up", __func__);
 	}
+
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
         }
 #endif 
@@ -5184,6 +5222,7 @@ static int synaptics_ts_resume(struct device *dev)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	if (boot_mode || !s2w_switch) {
 #endif
+
 	if (ts->use_irq) {
 		if (!ts->irq_enabled) {
 			enable_irq(ts->client->irq);
@@ -5192,6 +5231,7 @@ static int synaptics_ts_resume(struct device *dev)
 	}
 	else
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
+
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
 	}
 
@@ -5207,8 +5247,10 @@ static int synaptics_ts_resume(struct device *dev)
 		if(jiffies - boot_mode_init > BOOT_MODE_TIMEOUT)
 			boot_mode = 0;
 
+	scr_suspended = false;
+#endif 
+
 	ts->suspended = false;
-#endif
 	return 0;
 }
 
@@ -5262,6 +5304,11 @@ static int fb_notifier_callback(struct notifier_block *self,
 				printk("[TP] Suspend , Flush cover workqueue");
 				flush_workqueue( ts->syn_cover_wq );
 			}
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_WAKE_GESTURES
+			dt2w_reset_handler();
+#endif
+
 			synaptics_ts_suspend(&ts->client->dev);
 			break;
 		}
